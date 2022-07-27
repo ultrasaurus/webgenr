@@ -1,9 +1,9 @@
 [package]
-name = "discr-rs"
+name = "webgenr"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Sarah Allen"]
+description = "generate static site from markdown, media files and metadata"
 
 [dependencies]
 pulldown-cmark = "0.9.1"
