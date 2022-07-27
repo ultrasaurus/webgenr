@@ -48,7 +48,6 @@ fn main() {
     // TODO: use cli.inpath, iterate over all files
     let path = "markdown/index.md";
     let mut f = fs::File::open(path).expect("file not found");
-    // let mut markdown_input = BufReader::new(f);
 
     let mut markdown_input = String::new();
     f.read_to_string(&mut markdown_input)
@@ -57,7 +56,7 @@ fn main() {
     println!("input: {}", markdown_input);
     // Set up options and parser.
     let mut options = Options::empty();
-    // Example: Strikethroughs are not part of the CommonMark standard
+    // Strikethroughs are not part of the CommonMark standard
     // so must be enabled explicitly (TODO: maybe configure?)
     options.insert(Options::ENABLE_STRIKETHROUGH);
     let parser = MarkdownParser::new_ext(&markdown_input, options);
@@ -68,6 +67,7 @@ fn main() {
         .create(true)
         .open(".site/test.html")
         .expect("could not open output file");
+    
     let writer = BufWriter::new(out_file);
     html::write_html(writer, parser).expect("unable to write to file");
     println!("HTML file written!");
