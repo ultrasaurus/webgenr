@@ -1,8 +1,20 @@
-use pulldown_cmark::{html, Options, Parser};
+use clap::{AppSettings, Parser};
+use pulldown_cmark::{html, Options, Parser as MarkdownParser};
 use std::fs;
 use std::io::{BufWriter, Read};
 
-const DEFAULT_OUTPATH: &str = ".site";
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+#[clap(global_setting(AppSettings::DeriveDisplayOrder))]
+struct Cli {
+    /// directory path for markdown source files
+    #[clap(short, long, value_parser, default_value = "markdown")]
+    mdpath: String,
+
+    /// destination path for html
+    #[clap(short, long, value_parser, default_value = ".site")]
+    outpath: String,
+}
 
 // struct Config {
 //     outpath: String,
@@ -17,7 +29,8 @@ const DEFAULT_OUTPATH: &str = ".site";
 // }
 
 fn dist_folder_setup(path: &str) -> std::io::Result<()> {
-    // delete if exists and create new -- TODO: if exists
+    // delete if exists and create new
+    // TODO: check if exists
     std::fs::remove_dir_all(path)?;
     fs::create_dir_all(path)?;
     Ok(())
@@ -29,8 +42,11 @@ fn dist_folder_setup(path: &str) -> std::io::Result<()> {
 // }
 
 fn main() {
-    dist_folder_setup(DEFAULT_OUTPATH).expect("could not setup output directory");
-    let path = "index.md";
+    let cli = Cli::parse();
+    dist_folder_setup(&cli.outpath).expect("could not setup output directory");
+
+    // TODO: use cli.mdpath, iterate over all files
+    let path = "markdown/index.md";
     let mut f = fs::File::open(path).expect("file not found");
     // let mut markdown_input = BufReader::new(f);
 
@@ -44,7 +60,7 @@ fn main() {
     // Example: Strikethroughs are not part of the CommonMark standard
     // so must be enabled explicitly (TODO: maybe configure?)
     options.insert(Options::ENABLE_STRIKETHROUGH);
-    let parser = Parser::new_ext(&markdown_input, options);
+    let parser = MarkdownParser::new_ext(&markdown_input, options);
 
     // Write to a file
     let out_file = fs::OpenOptions::new()
