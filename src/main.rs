@@ -3,6 +3,11 @@ use pulldown_cmark::{html, Options, Parser as MarkdownParser};
 use std::fs;
 use std::io::{BufWriter, Read};
 
+extern crate pretty_env_logger;
+
+#[macro_use] 
+extern crate log;
+
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 #[clap(global_setting(AppSettings::DeriveDisplayOrder))]
@@ -42,6 +47,7 @@ fn dist_folder_setup(path: &str) -> std::io::Result<()> {
 // }
 
 fn main() {
+    pretty_env_logger::init();
     let cli = Cli::parse();
     dist_folder_setup(&cli.outpath).expect("could not setup output directory");
 
@@ -53,7 +59,7 @@ fn main() {
     f.read_to_string(&mut markdown_input)
         .expect("error reading file");
 
-    println!("input: {}", markdown_input);
+    info!("input: \n{}", markdown_input);
     // Set up options and parser.
     let mut options = Options::empty();
     // Strikethroughs are not part of the CommonMark standard
@@ -70,5 +76,5 @@ fn main() {
     
     let writer = BufWriter::new(out_file);
     html::write_html(writer, parser).expect("unable to write to file");
-    println!("HTML file written!");
+    info!("HTML file written!");
 }
