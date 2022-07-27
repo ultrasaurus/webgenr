@@ -9,7 +9,7 @@ use std::io::{BufWriter, Read};
 struct Cli {
     /// directory path for markdown source files
     #[clap(short, long, value_parser, default_value = "markdown")]
-    mdpath: String,
+    inpath: String,
 
     /// destination path for html
     #[clap(short, long, value_parser, default_value = ".site")]
@@ -45,7 +45,7 @@ fn main() {
     let cli = Cli::parse();
     dist_folder_setup(&cli.outpath).expect("could not setup output directory");
 
-    // TODO: use cli.mdpath, iterate over all files
+    // TODO: use cli.inpath, iterate over all files
     let path = "markdown/index.md";
     let mut f = fs::File::open(path).expect("file not found");
     // let mut markdown_input = BufReader::new(f);
