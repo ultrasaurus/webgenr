@@ -2,10 +2,11 @@ use clap::{AppSettings, Parser};
 use pulldown_cmark::{html, Options, Parser as MarkdownParser};
 use std::fs;
 use std::io::{BufWriter, Read};
+use std::path::Path;
 
 extern crate pretty_env_logger;
 
-#[macro_use] 
+#[macro_use]
 extern crate log;
 
 #[derive(Parser)]
@@ -33,10 +34,11 @@ struct Cli {
 //     }
 // }
 
-fn dist_folder_setup(path: &str) -> std::io::Result<()> {
+fn clean_folder(path: &str) -> std::io::Result<()> {
     // delete if exists and create new
-    // TODO: check if exists
-    std::fs::remove_dir_all(path)?;
+    if Path::new(path).exists() {
+        fs::remove_dir_all(path)?;
+    }
     fs::create_dir_all(path)?;
     Ok(())
 }
@@ -49,7 +51,7 @@ fn dist_folder_setup(path: &str) -> std::io::Result<()> {
 fn main() {
     pretty_env_logger::init();
     let cli = Cli::parse();
-    dist_folder_setup(&cli.outpath).expect("could not setup output directory");
+    clean_folder(&cli.outpath).expect("could not setup output directory");
 
     // TODO: use cli.inpath, iterate over all files
     let path = "markdown/index.md";
@@ -73,7 +75,7 @@ fn main() {
         .create(true)
         .open(".site/test.html")
         .expect("could not open output file");
-    
+
     let writer = BufWriter::new(out_file);
     html::write_html(writer, parser).expect("unable to write to file");
     info!("HTML file written!");
