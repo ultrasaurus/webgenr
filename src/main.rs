@@ -73,6 +73,21 @@ fn is_hidden(entry: &DirEntry) -> bool {
 }
 
 fn convert_one_file<W: Write>(source_path: &Path, out_writer: W) -> std::io::Result<()> {
+    println!("{}", source_path.display());
+    let mut f = fs::File::open(source_path).expect("file not found");
+    let mut markdown_input = String::new();
+    f.read_to_string(&mut markdown_input)
+        .expect("error reading file");
+    info!("input: \n{}", markdown_input);
+
+    // Set up options and parser.
+    let mut options = Options::empty();
+    // Strikethroughs are not part of the CommonMark standard
+    // so must be enabled explicitly (TODO: maybe configure?)
+    options.insert(Options::ENABLE_STRIKETHROUGH);
+    let parser = MarkdownParser::new_ext(&markdown_input, options);
+
+    html::write_html(out_writer, parser).expect("unable to write converted html");
     Ok(())
 }
 
@@ -83,24 +98,8 @@ fn process_files(inpath: &str, outpath_str: &str) -> std::io::Result<()> {
         let entry = entry_result?;
         let path = entry.path();
         if let Some(filename) = markdown_filename(&path) {
-            println!("{}", path.display());
-            let mut f = fs::File::open(path).expect("file not found");
-            let mut markdown_input = String::new();
-            f.read_to_string(&mut markdown_input)
-                .expect("error reading file");
-            info!("input: \n{}", markdown_input);
-
-            // Set up options and parser.
-            let mut options = Options::empty();
-            // Strikethroughs are not part of the CommonMark standard
-            // so must be enabled explicitly (TODO: maybe configure?)
-            options.insert(Options::ENABLE_STRIKETHROUGH);
-            let parser = MarkdownParser::new_ext(&markdown_input, options);
-
-            // let out_filename = format!("{}.html", filename);
             let out_filepath = outpath.join(format!("{}.html", filename));
             // TODO: match directory structure
-            // Write to a file
             let out_file = fs::OpenOptions::new()
                 .write(true)
                 .create(true)
@@ -108,20 +107,12 @@ fn process_files(inpath: &str, outpath_str: &str) -> std::io::Result<()> {
                 .expect("could not open output file");
 
             let writer = BufWriter::new(out_file);
-            html::write_html(writer, parser).expect("unable to write to file");
+
+            convert_one_file(path, writer)?;
+
             info!("HTML file written!");
         }
     }
-
-    // iterate over all files
-    // let path = "markdown/index.md";
-    // let mut f = fs::File::open(path).expect("file not found");
-
-    // let mut markdown_input = String::new();
-    // f.read_to_string(&mut markdown_input)
-    //     .expect("error reading file");
-
-    // info!("input: \n{}", markdown_input);
 
     Ok(())
 }
