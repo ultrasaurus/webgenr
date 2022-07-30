@@ -19,7 +19,7 @@ struct Cli {
     inpath: String,
 
     /// destination path for html
-    #[clap(short, long, value_parser, default_value = ".site")]
+    #[clap(short, long, value_parser, default_value = "_website")]
     outpath: String,
 }
 
