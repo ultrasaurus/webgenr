@@ -44,11 +44,6 @@ fn clean_folder(path: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-// fn copy_static_files(from_path: &str, to_path: &str) {
-//     // ignore hidden files and directories (e.g. .dist, .gitignore)
-//     // copy media files
-// }
-
 // if path references a markdown file, return filename stem
 // index.md -> Some(index)
 // thing.png -> None
@@ -73,7 +68,6 @@ fn is_hidden(entry: &DirEntry) -> bool {
 }
 
 fn convert_one_file<W: Write>(source_path: &Path, out_writer: W) -> std::io::Result<()> {
-    println!("{}", source_path.display());
     let mut f = fs::File::open(source_path).expect("file not found");
     let mut markdown_input = String::new();
     f.read_to_string(&mut markdown_input)
@@ -97,20 +91,30 @@ fn process_files(inpath: &str, outpath_str: &str) -> std::io::Result<()> {
     for entry_result in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry_result?;
         let path = entry.path();
-        if let Some(filename) = markdown_filename(&path) {
-            let out_filepath = outpath.join(format!("{}.html", filename));
-            // TODO: match directory structure
-            let out_file = fs::OpenOptions::new()
-                .write(true)
-                .create(true)
-                .open(out_filepath)
-                .expect("could not open output file");
+        if fs::metadata(path)?.is_file() {
+            if let Some(filename) = markdown_filename(&path) {
+                info!("markdown: {}", path.display());
+                let out_filepath = outpath.join(format!("{}.html", filename));
+                // TODO: match directory structure
+                let out_file = fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open(out_filepath)
+                    .expect("could not open output file");
 
-            let writer = BufWriter::new(out_file);
+                let writer = BufWriter::new(out_file);
 
-            convert_one_file(path, writer)?;
+                convert_one_file(path, writer)?;
 
-            info!("HTML file written!");
+                info!("HTML file written!");
+            } else {
+                if let Some(filename) = path.file_name() {
+                    info!("asset to move: {}", path.display());
+                    fs::copy(path, outpath.join(filename))?;
+                } else {
+                    warn!("ignoring mystery file: {}", path.display());
+                }
+            }
         }
     }
 
