@@ -23,18 +23,6 @@ struct Cli {
     outpath: String,
 }
 
-// struct Config {
-//     outpath: String,
-// }
-
-// impl Config {
-//     pub fn new() -> Self {
-//         Config {
-//             outpath: DEFAULT_OUTPATH,
-//         }
-//     }
-// }
-
 fn clean_folder(path: &str) -> std::io::Result<()> {
     // delete if exists and create new
     if Path::new(path).exists() {
