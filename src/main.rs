@@ -1,15 +1,9 @@
 use clap::{AppSettings, Parser};
-use pulldown_cmark::{html, Options, Parser as MarkdownParser};
 use std::fs;
-use std::io::{BufWriter, Read, Write};
 use std::path::Path;
-use walkdir::{DirEntry, WalkDir};
 use webgenr::Web;
 
 extern crate pretty_env_logger;
-
-#[macro_use]
-extern crate log;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]

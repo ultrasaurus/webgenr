@@ -60,12 +60,11 @@ impl Web {
                     .write(true)
                     .create(true)
                     .open(outpath.with_extension("html"))?;
-                info!("outfile created: {:?}", out_file);
                 let writer = io::BufWriter::new(out_file);
-                doc.write_html(writer);
-                println!("convert-> {}", doc.source_path.display())
+                doc.write_html(writer)?;
+                info!("convert-> {}", doc.source_path.display())
             } else {
-                println!("  copy-> {}", doc.source_path.display());
+                info!("  copy-> {}", doc.source_path.display());
                 fs::copy(&doc.source_path, outpath)?;
             }
         }
