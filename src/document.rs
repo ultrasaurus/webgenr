@@ -1,4 +1,4 @@
-use pulldown_cmark::{html, Options, Parser as MarkdownParser};
+use pulldown_cmark::{html, Event, Options, Parser as MarkdownParser, Tag};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -34,7 +34,21 @@ impl Document {
         // Strikethroughs are not part of the CommonMark standard
         // so must be enabled explicitly (TODO: maybe configure?)
         options.insert(Options::ENABLE_STRIKETHROUGH);
-        let parser = MarkdownParser::new_ext(&markdown_input, options);
+        let parser = MarkdownParser::new_ext(&markdown_input, options).map(|event| {
+            // transform links from .md to .html
+            match event {
+                Event::Start(Tag::Link(link_type, url, title)) => {
+                    let md_suffix = ".md";
+                    if url.ends_with(md_suffix) {
+                        let new_url = format!("{}.html", url.trim_end_matches(md_suffix));
+                        Event::Start(Tag::Link(link_type, new_url.into(), title))
+                    } else {
+                        Event::Start(Tag::Link(link_type, url, title))
+                    }
+                }
+                _ => event,
+            }
+        });
 
         html::write_html(out_writer, parser).expect("unable to write converted html");
         Ok(())
