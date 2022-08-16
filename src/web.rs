@@ -10,36 +10,36 @@ pub struct Web {
     doc_list: Vec<Document>,
 }
 
-impl Web {
-    // return true if the DirEntry represents a hidden file or directory
-    fn is_hidden(entry: &DirEntry) -> bool {
-        entry
-            .file_name()
-            .to_str()
-            .map(|s| s.starts_with("."))
-            .unwrap_or(false)
-    }
+// return true if the DirEntry represents a hidden file or directory
+fn is_hidden(entry: &DirEntry) -> bool {
+    entry
+        .file_name()
+        .to_str()
+        .map(|s| s.starts_with("."))
+        .unwrap_or(false)
+}
 
-    fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> io::Result<Vec<Document>> {
-        let mut vec: Vec<Document> = Vec::new();
-        let root = path_ref.as_ref().to_path_buf();
+fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> io::Result<Vec<Document>> {
+    let mut vec: Vec<Document> = Vec::new();
+    let root = path_ref.as_ref().to_path_buf();
 
-        let walker = WalkDir::new(root).follow_links(true).into_iter();
-        for entry_result in walker.filter_entry(|e| !Web::is_hidden(e)) {
-            let entry = entry_result?;
-            let path = entry.path();
-            if fs::metadata(path)?.is_file() {
-                vec.push(Document::new(path));
-            }
+    let walker = WalkDir::new(root).follow_links(true).into_iter();
+    for entry_result in walker.filter_entry(|e| !is_hidden(e)) {
+        let entry = entry_result?;
+        let path = entry.path();
+        if fs::metadata(path)?.is_file() {
+            vec.push(Document::new(path));
         }
-        Ok(vec)
     }
+    Ok(vec)
+}
 
+impl Web {
     pub fn new<P: AsRef<Path>>(in_path: P, out_path: P) -> io::Result<Self> {
         Ok(Web {
             in_path: in_path.as_ref().to_path_buf(),
             out_path: out_path.as_ref().to_path_buf(),
-            doc_list: Web::new_doc_list(in_path)?,
+            doc_list: new_doc_list(in_path)?,
         })
     }
 
