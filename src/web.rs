@@ -1,13 +1,18 @@
 use crate::document::Document;
+use anyhow::Result;
+use handlebars::Handlebars;
+use serde_json::json;
 use std::fs;
 use std::io;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
-pub struct Web {
+pub struct Web<'a> {
     pub in_path: PathBuf,
     pub out_path: PathBuf,
     doc_list: Vec<Document>,
+    template_registry: Handlebars<'a>,
 }
 
 // return true if the DirEntry represents a hidden file or directory
@@ -27,41 +32,65 @@ fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> io::Result<Vec<Document>> {
     for entry_result in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry_result?;
         let path = entry.path();
-        if fs::metadata(path)?.is_file() {
+        if std::fs::metadata(path)?.is_file() {
             vec.push(Document::new(path));
         }
     }
     Ok(vec)
 }
 
-impl Web {
-    pub fn new<P: AsRef<Path>>(in_path: P, out_path: P) -> io::Result<Self> {
+impl Web<'_> {
+    pub fn new<P: AsRef<Path>>(in_path: P, out_path: P) -> Result<Self> {
+        let mut handlebars = Handlebars::new();
+        handlebars.register_template_file("default", "templates/default.html")?;
+        handlebars.register_escape_fn(handlebars::no_escape);
         Ok(Web {
             in_path: in_path.as_ref().to_path_buf(),
             out_path: out_path.as_ref().to_path_buf(),
             doc_list: new_doc_list(in_path)?,
+            template_registry: handlebars,
         })
     }
 
-    pub fn gen(&mut self) -> std::io::Result<()> {
+    fn outpath(&self, doc: &Document) -> std::io::Result<PathBuf> {
+        let rel_path = doc
+            .source_path
+            .strip_prefix(&self.in_path)
+            .expect("strip prefix match");
+        Ok(self.out_path.join(rel_path))
+    }
+
+    fn create_dir_all(&self, path: &Path) -> std::io::Result<()> {
+        let dir = path.parent().unwrap();
+        if !dir.exists() {
+            fs::create_dir_all(dir)?;
+        }
+        Ok(())
+    }
+
+    pub fn gen(&mut self) -> Result<()> {
         info!("generating html for {} files", self.doc_list.len());
         for doc in &self.doc_list {
-            let rel_path = doc
-                .source_path
-                .strip_prefix(&self.in_path)
-                .expect("strip prefix match");
-            let outpath = self.out_path.join(rel_path);
-            let dir = outpath.parent().unwrap();
-            if !dir.exists() {
-                fs::create_dir_all(dir)?;
-            }
+            let outpath = self.outpath(doc)?;
+            self.create_dir_all(&outpath)?;
             if doc.is_markdown() {
                 let out_file = fs::OpenOptions::new()
                     .write(true)
                     .create(true)
                     .open(outpath.with_extension("html"))?;
-                let writer = io::BufWriter::new(out_file);
-                doc.write_html(writer)?;
+                let mut writer = io::BufWriter::new(out_file);
+
+                let mut html = Vec::new();
+
+                doc.write_html(&mut html)?;
+
+                let html_string = String::from_utf8(html)?;
+
+                let s = self
+                    .template_registry
+                    .render("default", &json!({ "body": html_string }))?;
+
+                writer.write_all(s.as_bytes())?;
                 info!("convert-> {}", doc.source_path.display())
             } else {
                 info!("  copy-> {}", doc.source_path.display());

@@ -1,3 +1,4 @@
+use anyhow::Result;
 use clap::{AppSettings, Parser};
 use std::fs;
 use std::path::Path;
@@ -27,7 +28,7 @@ fn clean_folder(path: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-fn process_files(cli: Cli) -> std::io::Result<()> {
+fn process_files(cli: Cli) -> Result<()> {
     let mut web = Web::new(&cli.inpath, &cli.outpath)?;
     web.gen()?;
     Ok(())
