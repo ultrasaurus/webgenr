@@ -12,8 +12,7 @@ see command-line options:
 RUST_LOG=info cargo run -- --help
 ```
 
-
-## User Stories
+## TBD User Stories
 
 1. I can install webgenr globally and run in any directory
 
@@ -32,3 +31,15 @@ workaround (starting from above state):
 cp -r ../webgenr/templates .
 mkdir markdown
 ```
+
+## Templates
+
+Hidden files and tempfile (starts with #) will be ignored. All registered will use their relative name as template name. For example, when dir_path is templates/ and tpl_extension is .hbs, the file templates/some/path/file.hbs will be registered as some/path/file.
+
+https://docs.rs/handlebars/latest/handlebars/struct.Handlebars.html#method.register_templates_directory
+
+
+
+
+
+
