@@ -78,6 +78,15 @@ impl Web<'_> {
                     .write(true)
                     .create(true)
                     .open(outpath.with_extension("html"))?;
+
+                // TODO: BUG? now self.outpath is incorrect
+                // move extension logic into that function?
+                info!(
+                    "convert-> {}\t{}",
+                    doc.source_path.display(),
+                    outpath.with_extension("html").display()
+                );
+
                 let mut writer = io::BufWriter::new(out_file);
 
                 let mut html = Vec::new();
@@ -91,9 +100,12 @@ impl Web<'_> {
                     .render("default", &json!({ "body": html_string }))?;
 
                 writer.write_all(s.as_bytes())?;
-                info!("convert-> {}", doc.source_path.display())
             } else {
-                info!("  copy-> {}", doc.source_path.display());
+                info!(
+                    "copy-> {}\t{}",
+                    doc.source_path.display(),
+                    &outpath.display()
+                );
                 fs::copy(&doc.source_path, outpath)?;
             }
         }
