@@ -12,7 +12,15 @@ see command-line options:
 RUST_LOG=info cargo run -- --help
 ```
 
+## TODOs
+- config file (for options avail on command-line)
+
 ## TBD User Stories
+
+1. I can override the default template dictory with command-line parameter
+```
+-t, --templatedir
+```
 
 1. I can install webgenr globally and run in any directory
 

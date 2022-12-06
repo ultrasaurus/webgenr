@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::{AppSettings, Parser};
+use handlebars::TemplateError;
 use std::fs;
 use std::path::Path;
 use webgenr::Web;
@@ -40,8 +41,13 @@ fn main() {
     pretty_env_logger::init();
     let cli = Cli::parse();
     clean_folder(&cli.outpath).expect("could not setup output directory");
-    match process_files(cli) {
-        Ok(_) => (),
-        Err(e) => println!("Erorr processing files: {:?}", e),
+    if let Err(e) = process_files(cli) {
+        println!("Erorr processing files: {:#?}", e);
+        // match e {
+        //     TemplateError(terr) => println!("line {}", terr.line),
+        //     _ =>  ()
+
+        // }
+        // Ok(_) => (),
     }
 }
