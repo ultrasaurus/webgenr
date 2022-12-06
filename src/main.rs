@@ -1,6 +1,5 @@
 use anyhow::Result;
 use clap::{AppSettings, Parser};
-use handlebars::TemplateError;
 use std::fs;
 use std::path::Path;
 use webgenr::Web;
@@ -43,11 +42,5 @@ fn main() {
     clean_folder(&cli.outpath).expect("could not setup output directory");
     if let Err(e) = process_files(cli) {
         println!("Erorr processing files: {:#?}", e);
-        // match e {
-        //     TemplateError(terr) => println!("line {}", terr.line),
-        //     _ =>  ()
-
-        // }
-        // Ok(_) => (),
     }
 }
