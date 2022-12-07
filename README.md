@@ -17,11 +17,6 @@ RUST_LOG=info cargo run -- --help
 
 ## TBD User Stories
 
-1. I can override the default template dictory with command-line parameter
-```
--t, --templatedir
-```
-
 1. I can install webgenr globally and run in any directory
 
 Current behavior (starting inside webgenr directory):

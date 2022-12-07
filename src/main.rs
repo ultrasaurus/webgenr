@@ -17,6 +17,10 @@ struct Cli {
     /// destination path for html
     #[clap(short, long, value_parser, default_value = "_website")]
     outpath: String,
+
+    /// directory path for template files
+    #[clap(short, long, value_parser, default_value = "templates")]
+    templatedir: String,
 }
 
 fn clean_folder(path: &str) -> std::io::Result<()> {
@@ -30,7 +34,7 @@ fn clean_folder(path: &str) -> std::io::Result<()> {
 
 fn process_files(cli: Cli) -> Result<()> {
     println!("processing source files:\t{}", &cli.inpath);
-    let mut web = Web::new(&cli.inpath, &cli.outpath)?;
+    let mut web = Web::new(&cli.inpath, &cli.outpath, &cli.templatedir)?;
     web.gen()?;
     println!("success! see output files:\t{}", &cli.outpath);
     Ok(())

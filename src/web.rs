@@ -40,9 +40,9 @@ fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> io::Result<Vec<Document>> {
 }
 
 impl Web<'_> {
-    pub fn new<P: AsRef<Path>>(in_path: P, out_path: P) -> Result<Self> {
+    pub fn new<P: AsRef<Path>>(in_path: P, out_path: P, templatedir_path: P) -> Result<Self> {
         let mut handlebars = Handlebars::new();
-        handlebars.register_templates_directory(".hbs", "templates")?;
+        handlebars.register_templates_directory(".hbs", templatedir_path)?;
         handlebars.register_escape_fn(handlebars::no_escape);
         Ok(Web {
             in_path: in_path.as_ref().to_path_buf(),
