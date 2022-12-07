@@ -1,6 +1,6 @@
 [package]
 name = "webgenr"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 authors = ["Sarah Allen"]
 description = "generate static site from markdown, media files and metadata"
