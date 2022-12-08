@@ -1,6 +1,7 @@
 use crate::document::Document;
 use anyhow::Result;
 use handlebars::Handlebars;
+use rust_embed::RustEmbed;
 use serde_json::json;
 use std::fs;
 use std::io;
@@ -14,6 +15,10 @@ pub struct Web<'a> {
     doc_list: Vec<Document>,
     template_registry: Handlebars<'a>,
 }
+
+#[derive(RustEmbed)]
+#[folder = "templates/"]
+struct Asset;
 
 // return true if the DirEntry represents a hidden file or directory
 fn is_hidden(entry: &DirEntry) -> bool {
@@ -43,7 +48,18 @@ impl Web<'_> {
     pub fn new<P: AsRef<Path>>(in_path: P, out_path: P, templatedir_path: P) -> Result<Self> {
         fs::create_dir_all(&in_path)?;
         fs::create_dir_all(&templatedir_path)?;
-
+        let default_template_path = Path::new("").join(&templatedir_path).join("default.hbs");
+        if default_template_path.exists() != true {
+            // not sure why I need to use this syntax, instead of Asset.get
+            if let Some(default_template) = Asset::get("default.hbs") {
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open(&default_template_path)
+                    .unwrap();
+                file.write_all(default_template.data.as_ref())?;
+            }
+        }
         let mut handlebars = Handlebars::new();
         handlebars.register_templates_directory(".hbs", templatedir_path)?;
         handlebars.register_escape_fn(handlebars::no_escape);
