@@ -1,19 +1,6 @@
-# Not ready for anyone to look at
+# Simple Static Site Generator (written in Rust)
 
-work-in-progress, experimental, might just be for my learning
-
-run with verbose output
-```
-RUST_LOG=info cargo run
-```
-
-see command-line options:
-```
-RUST_LOG=info cargo run -- --help
-```
-
-## TODOs
-- config file (for options avail on command-line)
+work-in-progress, experimental
 
 ## Install & Run locally
 
@@ -35,6 +22,20 @@ Hidden files and tempfile (starts with #) will be ignored.
 
 https://docs.rs/handlebars/latest/handlebars/struct.Handlebars.html#method.register_templates_directory
 
+# Development
+
+run with verbose output
+```
+RUST_LOG=info cargo run
+```
+
+see command-line options:
+```
+RUST_LOG=info cargo run -- --help
+```
+
+## TODOs
+- config file (for options avail on command-line)
 
 
 
