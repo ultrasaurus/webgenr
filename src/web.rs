@@ -87,7 +87,13 @@ impl Web<'_> {
         Ok(())
     }
 
-    pub fn gen(&mut self) -> Result<()> {
+    pub fn gen(&mut self) -> Result<usize> {
+        if self.doc_list.len() == 0 {
+            println!(
+                "\nplease add markdown files (.md extension) to source directory: {}\n",
+                self.in_path.display()
+            );
+        }
         info!("generating html for {} files", self.doc_list.len());
         for doc in &self.doc_list {
             let outpath = self.outpath(doc)?;
@@ -128,7 +134,7 @@ impl Web<'_> {
                 fs::copy(&doc.source_path, outpath)?;
             }
         }
-        Ok(())
+        Ok(self.doc_list.len())
     }
 }
 

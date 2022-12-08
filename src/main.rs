@@ -33,10 +33,12 @@ fn clean_folder(path: &str) -> std::io::Result<()> {
 }
 
 fn process_files(cli: Cli) -> Result<()> {
-    println!("processing source files:\t{}", &cli.inpath);
+    println!("processing source files from:\t{}", &cli.inpath);
     let mut web = Web::new(&cli.inpath, &cli.outpath, &cli.templatedir)?;
-    web.gen()?;
-    println!("success! see output files:\t{}", &cli.outpath);
+    let count = web.gen()?;
+    if count > 0 {
+        println!("success! see output files:\t{}", &cli.outpath);
+    }
     Ok(())
 }
 
