@@ -1,3 +1,6 @@
+---
+title: Hello World
+---
 # Hello world!
 
 This is a markdown list:

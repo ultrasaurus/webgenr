@@ -1,10 +1,8 @@
 use crate::document::Document;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use handlebars::Handlebars;
 use rust_embed::RustEmbed;
-use serde_json::json;
 use std::fs;
-use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
@@ -13,7 +11,7 @@ pub struct Web<'a> {
     pub in_path: PathBuf,
     pub out_path: PathBuf,
     doc_list: Vec<Document>,
-    template_registry: Handlebars<'a>,
+    pub template_registry: Handlebars<'a>,
 }
 
 #[derive(RustEmbed)]
@@ -29,7 +27,7 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .unwrap_or(false)
 }
 
-fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> io::Result<Vec<Document>> {
+fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> anyhow::Result<Vec<Document>> {
     let mut vec: Vec<Document> = Vec::new();
     let root = path_ref.as_ref().to_path_buf();
 
@@ -37,8 +35,10 @@ fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> io::Result<Vec<Document>> {
     for entry_result in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry_result?;
         let path = entry.path();
-        if std::fs::metadata(path)?.is_file() {
-            vec.push(Document::new(path));
+        if fs::metadata(path)?.is_file() {
+            let doc = Document::new(path)
+                .with_context(|| format!("Failed to read {}", path.display()))?;
+            vec.push(doc);
         }
     }
     Ok(vec)
@@ -82,7 +82,7 @@ impl Web<'_> {
     fn create_dir_all(&self, path: &Path) -> std::io::Result<()> {
         let dir = path.parent().unwrap();
         if !dir.exists() {
-            fs::create_dir_all(dir)?;
+            std::fs::create_dir_all(dir)?;
         }
         Ok(())
     }
@@ -98,41 +98,7 @@ impl Web<'_> {
         for doc in &self.doc_list {
             let outpath = self.outpath(doc)?;
             self.create_dir_all(&outpath)?;
-            if doc.is_markdown() {
-                let out_file = fs::OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .open(outpath.with_extension("html"))?;
-
-                // TODO: BUG? now self.outpath is incorrect
-                // move extension logic into that function?
-                info!(
-                    "convert-> {}\t{}",
-                    doc.source_path.display(),
-                    outpath.with_extension("html").display()
-                );
-
-                let mut writer = io::BufWriter::new(out_file);
-
-                let mut html = Vec::new();
-
-                doc.write_html(&mut html)?;
-
-                let html_string = String::from_utf8(html)?;
-
-                let s = self
-                    .template_registry
-                    .render("default", &json!({ "body": html_string }))?;
-
-                writer.write_all(s.as_bytes())?;
-            } else {
-                info!(
-                    "copy-> {}\t{}",
-                    doc.source_path.display(),
-                    &outpath.display()
-                );
-                fs::copy(&doc.source_path, outpath)?;
-            }
+            doc.webgen(&self)?;
         }
         Ok(self.doc_list.len())
     }
