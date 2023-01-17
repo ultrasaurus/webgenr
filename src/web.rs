@@ -87,7 +87,7 @@ impl Web<'_> {
         Ok(())
     }
 
-    pub fn gen(&mut self) -> Result<usize> {
+    pub fn gen_website(&mut self) -> Result<usize> {
         if self.doc_list.len() == 0 {
             println!(
                 "\nplease add markdown files (.md extension) to source directory: {}\n",

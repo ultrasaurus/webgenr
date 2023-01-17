@@ -21,6 +21,9 @@ struct Cli {
     /// directory path for template files
     #[clap(short, long, value_parser, default_value = "templates")]
     templatedir: String,
+
+    #[clap(long, short, action)]
+    book: bool,
 }
 
 fn clean_folder(path: &str) -> std::io::Result<()> {
@@ -35,9 +38,14 @@ fn clean_folder(path: &str) -> std::io::Result<()> {
 fn process_files(cli: Cli) -> Result<()> {
     println!("processing source files from:\t{}", &cli.inpath);
     let mut web = Web::new(&cli.inpath, &cli.outpath, &cli.templatedir)?;
-    let count = web.gen()?;
-    if count > 0 {
-        println!("success! see output files:\t{}", &cli.outpath);
+    if cli.book {
+        println!("book!");
+    } else {
+        clean_folder(&cli.outpath).expect("could not setup output directory");
+        let count = web.gen_website()?;
+        if count > 0 {
+            println!("success! see output files:\t{}", &cli.outpath);
+        }
     }
     Ok(())
 }
@@ -45,8 +53,9 @@ fn process_files(cli: Cli) -> Result<()> {
 fn main() {
     pretty_env_logger::init();
     let cli = Cli::parse();
-    clean_folder(&cli.outpath).expect("could not setup output directory");
+
     if let Err(e) = process_files(cli) {
         println!("Erorr processing files: {:#?}", e);
     }
+
 }
