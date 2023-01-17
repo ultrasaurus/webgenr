@@ -24,15 +24,12 @@ https://docs.rs/handlebars/latest/handlebars/struct.Handlebars.html#method.regis
 
 # Development
 
-run with verbose output
-```
-RUST_LOG=info cargo run
-```
-
 see command-line options:
 ```
 RUST_LOG=info cargo run -- --help
 ```
+
+see `examples` folder for more usage examples
 
 ## TODOs
 - config file (for options avail on command-line)
