@@ -39,7 +39,8 @@ fn process_files(cli: Cli) -> Result<()> {
     println!("processing source files from:\t{}", &cli.inpath);
     let mut web = Web::new(&cli.inpath, &cli.outpath, &cli.templatedir)?;
     if cli.book {
-        println!("book!");
+        web.gen_book()?;
+        println!("book created!");
     } else {
         clean_folder(&cli.outpath).expect("could not setup output directory");
         let count = web.gen_website()?;

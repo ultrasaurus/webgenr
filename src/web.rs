@@ -87,6 +87,92 @@ impl Web<'_> {
         Ok(())
     }
 
+    fn make_book_internal(&self, author: &str, title: &str) -> anyhow::Result<()> {
+        use epub_builder::EpubBuilder;
+        use epub_builder::EpubContent;
+        use epub_builder::ReferenceType;
+        use epub_builder::ZipLibrary;
+        use std::fs::File;
+        use anyhow::anyhow;
+        
+        let writer = std::fs::File::create("book.epub")?;
+        let zip_lib = ZipLibrary::new().map_err(|err| anyhow!("initializing zip {:#?}", err))?;
+        let mut epub = EpubBuilder::new(zip_lib)
+            .map_err(|err| anyhow!("initializing epub {:#?}", err))?;
+
+        epub.add_author(author);
+        epub.set_title(title);
+        let mut chapter_number = 1;
+        for doc in &self.doc_list {
+            if Some(std::ffi::OsStr::new("cover")) == doc.source_path.file_stem(){
+                let default_extension = "png";
+                let extension = match doc.source_path.file_stem() {
+                    Some(os_str) => {
+                        match os_str.to_str() {
+                            Some(str) => str,
+                            None => {
+                                println!("can't convert file extension {:?} to str", os_str);
+                                default_extension
+                            },
+                        }
+                    },
+                    None => {
+                        println!("no file extension for cover image, assuming png");
+                        default_extension
+                    },
+                };
+               epub.add_cover_image(&doc.source_path, 
+                        File::open(&doc.source_path)?, 
+                        format!("image/{}", extension))
+                        .map_err(|err| anyhow!("adding cover image {:#?}", err))?;
+            } else {
+                
+                let default_zip_path = format!("chapter{}.xhtml", chapter_number);
+                let chapter_title = format!("Chapter {}", chapter_number);  // TODO: get from YAML front matter
+                let zip_path = match doc.source_path.file_stem() {
+                    Some(os_str) => format!("{}.xhtml", os_str.to_string_lossy()),
+                    None => default_zip_path,
+                };
+                println!("adding {}\tas {},\ttitle: {}", doc.source_path.display(), zip_path, chapter_title);
+                epub.add_content(
+                    EpubContent::new(zip_path, File::open(&doc.source_path)?)
+                        .title(chapter_title)
+                        .reftype(ReferenceType::Text),
+                )
+                .map_err(|err| anyhow!("adding content to epub {:#?}", err))?;
+                chapter_number = chapter_number +1;
+
+
+
+            //   epub.add_content(
+            // EpubContent::new(&doc.source_path, File::open(doc.source_path)?)
+            //     .title("First computer program")
+            //     .reftype(ReferenceType::Text))
+            //     .map_err(|err| anyhow!("adding content to epub {:#?}", err))?;
+            
+            }
+        }
+        epub.generate(writer)
+        .map_err(|err| anyhow!("generating epub {:#?}", err))?;
+
+        Ok(())
+    }
+
+    pub fn gen_book(&mut self) -> Result<usize> {
+        if self.doc_list.len() == 0 {
+            println!(
+                "\nplease add files to source directory: {}\n",
+                self.in_path.display()
+            );
+        }
+        info!("generating ePub for {} files", self.doc_list.len());
+        
+        match self.make_book_internal("Author Name", "My Book") {
+            Err(e) => anyhow::bail!("Problem creating ebook: {:#?}", e),
+            Ok(_) => Ok(self.doc_list.len())
+        }
+    }
+
     pub fn gen_website(&mut self) -> Result<usize> {
         if self.doc_list.len() == 0 {
             println!(
