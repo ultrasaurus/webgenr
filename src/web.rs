@@ -94,7 +94,7 @@ impl Web<'_> {
         use epub_builder::ZipLibrary;
         use std::fs::File;
         use anyhow::anyhow;
-        
+
         let writer = std::fs::File::create("book.epub")?;
         let zip_lib = ZipLibrary::new().map_err(|err| anyhow!("initializing zip {:#?}", err))?;
         let mut epub = EpubBuilder::new(zip_lib)
@@ -103,54 +103,54 @@ impl Web<'_> {
         epub.add_author(author);
         epub.set_title(title);
         let mut chapter_number = 1;
+        
         for doc in &self.doc_list {
-            if Some(std::ffi::OsStr::new("cover")) == doc.source_path.file_stem(){
-                let default_extension = "png";
-                let extension = match doc.source_path.file_stem() {
-                    Some(os_str) => {
-                        match os_str.to_str() {
-                            Some(str) => str,
-                            None => {
-                                println!("can't convert file extension {:?} to str", os_str);
-                                default_extension
-                            },
-                        }
-                    },
-                    None => {
-                        println!("no file extension for cover image, assuming png");
-                        default_extension
-                    },
-                };
-               epub.add_cover_image(&doc.source_path, 
-                        File::open(&doc.source_path)?, 
-                        format!("image/{}", extension))
-                        .map_err(|err| anyhow!("adding cover image {:#?}", err))?;
-            } else {
-                
-                let default_zip_path = format!("chapter{}.xhtml", chapter_number);
-                let chapter_title = format!("Chapter {}", chapter_number);  // TODO: get from YAML front matter
-                let zip_path = match doc.source_path.file_stem() {
-                    Some(os_str) => format!("{}.xhtml", os_str.to_string_lossy()),
-                    None => default_zip_path,
-                };
-                println!("adding {}\tas {},\ttitle: {}", doc.source_path.display(), zip_path, chapter_title);
-                epub.add_content(
-                    EpubContent::new(zip_path, File::open(&doc.source_path)?)
-                        .title(chapter_title)
-                        .reftype(ReferenceType::Text),
-                )
-                .map_err(|err| anyhow!("adding content to epub {:#?}", err))?;
-                chapter_number = chapter_number +1;
-
-
-
-            //   epub.add_content(
-            // EpubContent::new(&doc.source_path, File::open(doc.source_path)?)
-            //     .title("First computer program")
-            //     .reftype(ReferenceType::Text))
-            //     .map_err(|err| anyhow!("adding content to epub {:#?}", err))?;
+            let file_stem = doc.file_stem()?;
             
-            }
+            match file_stem {
+                "cover" | "_cover "=>  {
+                    println!("cover: {}", doc.source_path.display());
+                    let default_extension = "png";
+                    let extension = match doc.source_path.file_stem() {
+                        Some(os_str) => {
+                            match os_str.to_str() {
+                                Some(str) => str,
+                                None => {
+                                    println!("can't convert file extension {:?} to str", os_str);
+                                    default_extension
+                                },
+                            }
+                        },
+                        None => {
+                            println!("no file extension for cover image, assuming png");
+                            default_extension
+                        },
+                    };
+                    epub.add_cover_image(&doc.source_path,
+                                File::open(&doc.source_path)?,
+                                format!("image/{}", extension))
+                                .map_err(|err| anyhow!("adding cover image {:#?}", err))?;
+
+                },
+                _ => {
+                    println!("other: {}", doc.source_path.display());
+                    let default_zip_path = format!("chapter{}.xhtml", chapter_number);
+                    let chapter_title = format!("Chapter {}", chapter_number);  // TODO: get from YAML front matter
+                    let zip_path = match doc.source_path.file_stem() {
+                        Some(os_str) => format!("{}.xhtml", os_str.to_string_lossy()),
+                        None => default_zip_path,
+                    };
+                    println!("adding {}\tas {},\ttitle: {}", doc.source_path.display(), zip_path, chapter_title);
+                    epub.add_content(
+                        EpubContent::new(zip_path, File::open(&doc.source_path)?)
+                            .title(chapter_title)
+                            .reftype(ReferenceType::Text),
+                    )
+                    .map_err(|err| anyhow!("adding content to epub {:#?}", err))?;
+                    chapter_number = chapter_number +1;
+
+                }
+            } // match file_stem
         }
         epub.generate(writer)
         .map_err(|err| anyhow!("generating epub {:#?}", err))?;

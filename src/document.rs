@@ -5,6 +5,7 @@ use serde_yaml;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use anyhow::bail;
 
 pub struct FrontMatter {
     vars: std::collections::HashMap<String, String>,
@@ -81,6 +82,21 @@ impl Document {
             info,
         })
     }
+    // The only reason this would fail is if at some point we create a
+    // Document with path from user input.
+    // Right now that would only happen for developer error, so this
+    // is simply wrapper function for rust std api providing nice error messages
+    pub fn file_stem(&self) -> anyhow::Result<&str> {
+        match self.source_path.file_stem() {
+            Some(os_stem) =>
+                match os_stem.to_str() {
+                    Some(stem) => Ok(stem),
+                    None => bail!("Document: could not parse path, perhaps UTF8 conversion error for {}", self.source_path.display())
+                },
+            None => bail!("Document: unexpected empty file name for: {}", self.source_path.display()),
+        }
+    }
+
     fn outpath(&self, root: &PathBuf, out_dir: &PathBuf) -> std::io::Result<PathBuf> {
         let rel_path = self
             .source_path
