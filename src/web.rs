@@ -108,7 +108,7 @@ impl Web<'_> {
             let file_stem = doc.file_stem()?;
             
             match file_stem {
-                "cover" | "_cover "=>  {
+                "cover" | "_cover" =>  {
                     println!("cover: {}", doc.source_path.display());
                     let default_extension = "png";
                     let extension = match doc.source_path.file_stem() {
@@ -132,8 +132,17 @@ impl Web<'_> {
                                 .map_err(|err| anyhow!("adding cover image {:#?}", err))?;
 
                 },
+                "title" | "_title" =>  {
+                    println!("title page: {}", doc.source_path.display());
+                    let file_name = doc.source_path.file_name().unwrap().to_string_lossy();
+                    epub.add_content(
+                        EpubContent::new(file_name, File::open(&doc.source_path)?)
+                            .title("Title Page")
+                            .reftype(ReferenceType::TitlePage),
+                        )
+                        .map_err(|err| anyhow!("adding title page to epub {:#?}", err))?;
+                },
                 _ => {
-                    println!("other: {}", doc.source_path.display());
                     let default_zip_path = format!("chapter{}.xhtml", chapter_number);
                     let chapter_title = format!("Chapter {}", chapter_number);  // TODO: get from YAML front matter
                     let zip_path = match doc.source_path.file_stem() {
