@@ -7,12 +7,12 @@ work-in-progress, experimental
 clone this repo, then from within the repo's top-level directory:
 ```
 cargo install --path .
-cd ~ && mkdir test && cd test   
+cd ~ && mkdir test && cd test
 
 webgenr
 ```
 
-Directories will be created, as needed. 
+Directories will be created, as needed.
 
 ## Templates
 
@@ -36,6 +36,20 @@ Eventually will move to github issues, just keeping roadmap-y things here
 until there are multiple maintainers or additional users.
 
 ### Misc TODO
+- how to deal with book cover image and title page? I think I like option 2
+  - current: now there are special filenames, but feels like wrong approach.
+    I've found reserving "special" names can lead to hard to figure out bugs
+    for users
+        - cover or _cover
+        - title or _title
+  - option 1: a folder for front-matter or paratext
+    (if ebooks have other special pages / annotations)
+  - option 2: --cover name --title name, with no argument uses default name
+    otherwise book lacks cover image or title page
+- option to create book and/or web
+  - current: --book creates epub, without it website is generated
+  - future: something like --format=web,epub,pdf or something semantically
+    equivalent (look into common way for multiple options like that?)
 - config file (for options avail on command-line), prolly will wait till
   there's a bit more clarity on options needed. Or if someone wants it,
   they can propose a format with config options, file an issue and link it here.
