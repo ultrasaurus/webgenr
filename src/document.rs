@@ -1,5 +1,5 @@
 use crate::Web;
-use pulldown_cmark::{html, Event, Options, Parser as MarkdownParser, Tag};
+use pulldown_cmark::{Event, Parser as MarkdownParser, Tag};
 use serde_json;
 use serde_yaml;
 use std::fs;
@@ -171,10 +171,10 @@ impl Document {
     // private utility function
     fn write_html<W: Write>(out_writer: W, markdown: &String) -> anyhow::Result<()> {
         // Set up pulldown_cmark options and parser.
-        let mut options = Options::empty();
+        let mut options = pulldown_cmark::Options::empty();
         // Strikethroughs are not part of the CommonMark standard
         // so must be enabled explicitly (TODO: maybe configure?)
-        options.insert(Options::ENABLE_STRIKETHROUGH);
+        options.insert(pulldown_cmark::Options::ENABLE_STRIKETHROUGH);
 
         let parser = MarkdownParser::new_ext(&markdown, options).map(|event| {
             // transform links from .md to .html
@@ -192,7 +192,7 @@ impl Document {
             }
         });
 
-        html::write_html(out_writer, parser)?;
+        pulldown_cmark::html::write_html(out_writer, parser)?;
         Ok(())
     }
 }
