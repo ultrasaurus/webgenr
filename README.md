@@ -54,11 +54,18 @@ until there are multiple maintainers or additional users.
   there's a bit more clarity on options needed. Or if someone wants it,
   they can propose a format with config options, file an issue and link it here.
 
-
+### TODO - if requested
+- file extensons: particular file extensions are hard-coded; however,
+  there are common variants not currently supported
+  - code writes HTML files with `.html` extension. Alternate `.htm` could
+    be future config option
+  - code identifies markdown files with `.md` extension. Would be easy to
+    also look for `.markdown`
 
 ### TODO - tech debt
--  currently using https://github.com/ultrasaurus/epub-builder.
-   At some point, need to figure out if we need to:
+- need to write some automated tests
+- currently using https://github.com/ultrasaurus/epub-builder.
+  At some point, need to figure out if we need to:
     1. hard fork the library we're using "own" the epub making code
     2. find an alternated library, or
     3. if @lisa-henry is going to actively maintain https://github.com/lise-henry/epub-builder

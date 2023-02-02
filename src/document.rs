@@ -128,10 +128,13 @@ impl Document {
                     outpath.with_extension("html").display()
                 );
                 let mut writer = std::io::BufWriter::new(out_file);
+
+                // generate html
                 let mut html = Vec::new();
                 Self::write_html(&mut html, &text)?;
                 let html_string = String::from_utf8(html)?;
 
+                // insert into handlebars template
                 let mut template_vars = match front_matter {
                     Some(front_matter) => front_matter.vars.clone(),
                     None => Default::default(),
@@ -165,13 +168,15 @@ impl Document {
         false
     }
 
-    fn write_html<W: Write>(out_writer: W, text: &String) -> anyhow::Result<()> {
-        // Set up options and parser.
+    // private utility function
+    fn write_html<W: Write>(out_writer: W, markdown: &String) -> anyhow::Result<()> {
+        // Set up pulldown_cmark options and parser.
         let mut options = Options::empty();
         // Strikethroughs are not part of the CommonMark standard
         // so must be enabled explicitly (TODO: maybe configure?)
         options.insert(Options::ENABLE_STRIKETHROUGH);
-        let parser = MarkdownParser::new_ext(&text, options).map(|event| {
+
+        let parser = MarkdownParser::new_ext(&markdown, options).map(|event| {
             // transform links from .md to .html
             match event {
                 Event::Start(Tag::Link(link_type, url, title)) => {
