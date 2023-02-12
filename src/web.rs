@@ -1,5 +1,5 @@
 use crate::document::Document;
-use anyhow::{Context, Result};
+use anyhow::Context;
 use handlebars::Handlebars;
 use rust_embed::RustEmbed;
 use std::fs;
@@ -16,6 +16,7 @@ pub struct Web<'a> {
 
 #[derive(RustEmbed)]
 #[folder = "templates/"]
+#[exclude = ".*"]   // ignore hidden files
 struct Asset;
 
 // return true if the DirEntry represents a hidden file or directory
@@ -45,21 +46,45 @@ fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> anyhow::Result<Vec<Document>> {
 }
 
 impl Web<'_> {
-    pub fn new<P: AsRef<Path>>(in_path: P, out_path: P, templatedir_path: P) -> Result<Self> {
-        fs::create_dir_all(&in_path)?;
-        fs::create_dir_all(&templatedir_path)?;
-        let default_template_path = Path::new("").join(&templatedir_path).join("default.hbs");
-        if default_template_path.exists() != true {
-            // not sure why I need to use this syntax, instead of Asset.get
-            if let Some(default_template) = Asset::get("default.hbs") {
-                let mut file = std::fs::OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .open(&default_template_path)
-                    .unwrap();
-                file.write_all(default_template.data.as_ref())?;
-            }
+    // copy embedded templates into given directory path
+    fn inflate_default_templates<P: AsRef<Path>>(templatedir_path: P) -> anyhow::Result<()> {
+        for relative_path_str in Asset::iter() {
+            let relative_path = PathBuf::from(relative_path_str.to_string());
+            let new_template_path = Path::new("").join(&templatedir_path).join(&relative_path);
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open(&new_template_path)
+                .unwrap();
+            file.write_all(&Asset::get(&relative_path_str).unwrap().data.as_ref())?;
         }
+        Ok(())
+    }
+
+    fn path_not_found<P: AsRef<Path>>(path: P) -> anyhow::Result<bool> {
+       if let Err(err) = fs::metadata(&path) {
+            match err.kind() {
+                std::io::ErrorKind::NotFound => {
+                    return Ok(true)
+                }
+                _ => {
+                    error!("Error finding templates directory");
+                    return Err(err.into())
+                }
+            }
+       }
+       Ok(false)   // path was found
+    }
+    pub fn new<P: AsRef<Path>>(in_path: P, out_path: P, templatedir_path: P) -> anyhow::Result<Self> {
+
+       fs::create_dir_all(&in_path)?;
+
+        // create directory and fill with default templates if needed
+       if Self::path_not_found(&templatedir_path)? {
+            fs::create_dir_all(&templatedir_path)?;
+            Self::inflate_default_templates(&templatedir_path)?;
+        }
+
         let mut handlebars = Handlebars::new();
         handlebars.register_templates_directory(".hbs", templatedir_path)?;
         handlebars.register_escape_fn(handlebars::no_escape);
@@ -103,10 +128,10 @@ impl Web<'_> {
         epub.add_author(author);
         epub.set_title(title);
         let mut chapter_number = 1;
-        
+
         for doc in &self.doc_list {
             let file_stem = doc.file_stem()?;
-            
+
             match file_stem {
                 "cover" | "_cover" =>  {
                     println!("cover: {}", doc.source_path.display());
@@ -167,7 +192,7 @@ impl Web<'_> {
         Ok(())
     }
 
-    pub fn gen_book(&mut self) -> Result<usize> {
+    pub fn gen_book(&mut self) -> anyhow::Result<usize> {
         if self.doc_list.len() == 0 {
             println!(
                 "\nplease add files to source directory: {}\n",
@@ -175,14 +200,14 @@ impl Web<'_> {
             );
         }
         info!("generating ePub for {} files", self.doc_list.len());
-        
+
         match self.make_book_internal("Author Name", "My Book") {
             Err(e) => anyhow::bail!("Problem creating ebook: {:#?}", e),
             Ok(_) => Ok(self.doc_list.len())
         }
     }
 
-    pub fn gen_website(&mut self) -> Result<usize> {
+    pub fn gen_website(&mut self) -> anyhow::Result<usize> {
         if self.doc_list.len() == 0 {
             println!(
                 "\nplease add markdown files (.md extension) to source directory: {}\n",

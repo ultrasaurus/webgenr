@@ -15,6 +15,6 @@ handlebars = {version = "4.2.2", features = ["dir_source"]}
 anyhow = "1.0.56"
 serde_json = "1.0.79"
 serde = "1.0.136"
-rust-embed = "6.4.2"
+rust-embed = {version = "6.4.2", features = ["include-exclude"]}
 serde_yaml = "0.9.14"
 epub-builder = { git = "https://github.com/ultrasaurus/epub-builder", branch="ultra-main" }
