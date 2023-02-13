@@ -1,7 +1,9 @@
 use crate::Web;
+use crate::util::{is_audio_file};
 use pulldown_cmark::{Event, Parser as MarkdownParser, Tag};
 use serde_json;
 use serde_yaml;
+use std::borrow::Cow;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -176,23 +178,41 @@ impl Document {
         // so must be enabled explicitly (TODO: maybe configure?)
         options.insert(pulldown_cmark::Options::ENABLE_STRIKETHROUGH);
 
-        let parser = MarkdownParser::new_ext(&markdown, options).map(|event| {
-            // transform links from .md to .html
-            match event {
+        let mut parser = MarkdownParser::new_ext(&markdown, options);
+
+        let mut new_event_list: Vec<Event> = Vec::new();
+        while let Some(event) = parser.next() {
+            let next_event = match event {
                 Event::Start(Tag::Link(link_type, url, title)) => {
                     let md_suffix = ".md";
                     if url.ends_with(md_suffix) {
                         let new_url = format!("{}.html", url.trim_end_matches(md_suffix));
                         Event::Start(Tag::Link(link_type, new_url.into(), title))
+                    } else if is_audio_file(&url) {
+                        let link_text = if let Some(next_event) = parser.next() {
+                            if let Event::Text(text) = next_event {
+                                parser.next();  // skip Event::End
+                                text
+                            } else {
+                                // no text event, just Event::End
+                                Cow::Borrowed("").into()
+                            }
+                        } else {
+                            Cow::Borrowed("").into()
+                        };
+                        Event::Html(format!("<a href=\"{}\" title=\"{}\" class=\"audio\">{}</a>",
+                                &url, &title, &link_text).into())
                     } else {
                         Event::Start(Tag::Link(link_type, url, title))
                     }
                 }
                 _ => event,
-            }
-        });
+            };
+            new_event_list.push(next_event);
+        };
 
-        pulldown_cmark::html::write_html(out_writer, parser)?;
+        pulldown_cmark::html::write_html(out_writer, new_event_list.into_iter())?;
         Ok(())
     }
+
 }

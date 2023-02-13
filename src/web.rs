@@ -222,6 +222,7 @@ impl Web<'_> {
         }
         Ok(self.doc_list.len())
     }
+
 }
 
 #[cfg(test)]
