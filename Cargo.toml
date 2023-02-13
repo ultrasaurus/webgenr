@@ -1,6 +1,6 @@
 [package]
 name = "webgenr"
-version = "0.1.6"  # added --book options
+version = "0.1.7"  # added css class for audio links
 edition = "2021"
 authors = ["Sarah Allen"]
 description = "generate static site from markdown, media files and metadata"
