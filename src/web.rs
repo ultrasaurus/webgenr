@@ -6,10 +6,12 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
+use std::ffi::OsStr;
 
 pub struct Web<'a> {
     pub in_path: PathBuf,
     pub out_path: PathBuf,
+    pub template_dir_path: PathBuf,
     doc_list: Vec<Document>,
     pub template_registry: Handlebars<'a>,
 }
@@ -46,17 +48,67 @@ fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> anyhow::Result<Vec<Document>> {
 }
 
 impl Web<'_> {
+    fn create_all_parent_dir(path: &Path) -> std::io::Result<()> {
+        let dir = path.parent().unwrap();
+        if !dir.exists() {
+            std::fs::create_dir_all(dir)?;
+        }
+        Ok(())
+    }
+
     // copy embedded templates into given directory path
     fn inflate_default_templates<P: AsRef<Path>>(templatedir_path: P) -> anyhow::Result<()> {
+        info!("inflating default templates");
         for relative_path_str in Asset::iter() {
+            info!("  {}", relative_path_str);
             let relative_path = PathBuf::from(relative_path_str.to_string());
             let new_template_path = Path::new("").join(&templatedir_path).join(&relative_path);
+            Self::create_all_parent_dir(&new_template_path)?;
             let mut file = std::fs::OpenOptions::new()
                 .write(true)
                 .create(true)
                 .open(&new_template_path)
                 .unwrap();
             file.write_all(&Asset::get(&relative_path_str).unwrap().data.as_ref())?;
+        }
+        Ok(())
+    }
+
+    // copy files recursively from `source_dir` to `dest_dir`
+    // omitting files with extension `omit_ext` (.gitignore syntax from globwalk crate)
+    fn copy_files<P: AsRef<Path>>(source_dir: P, dest_dir: P, omit_ext: &str) -> anyhow::Result<()> {
+        info!("copyfiles, omitting {}", omit_ext);
+        info!(" std::env::current_dir: {:?}",  std::env::current_dir());
+    let walker = WalkDir::new(&source_dir).follow_links(true).into_iter();
+    for entry_result in walker
+        .filter_entry(|e| !is_hidden(e) && e.path().extension() != Some(OsStr::new(omit_ext))) {
+            if let Ok(dir_entry) = entry_result  {
+                let rel_path = dir_entry.path()
+                    .strip_prefix(&source_dir)
+                    .expect("strip prefix match");
+
+                let dest_path = PathBuf::from(dest_dir.as_ref()).join(rel_path);
+                if dir_entry.path().is_dir() {
+                    info!("  dir: {:?}", dest_path);
+                    fs::create_dir_all(&dest_path)?;
+                } else {
+                    // copy file
+                    info!("  file: {:?}", dir_entry.path());
+
+                    match fs::copy(dir_entry.path(), &dest_path) {
+                        Ok(bytes) => info!(
+                            "copy {} bytes-> {}\t{}",
+                            bytes,
+                            dir_entry.path().display(),
+                            &dest_path.display()
+                        ),
+                        Err(e) => anyhow::bail!("error: {}, failed to copy from: {} to {}",
+                            e,
+                            dir_entry.path().display(),
+                            &dest_path.display())
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -75,41 +127,36 @@ impl Web<'_> {
        }
        Ok(false)   // path was found
     }
+
+    // creates required folders (but does not delete any old files)
     pub fn new<P: AsRef<Path>>(in_path: P, out_path: P, templatedir_path: P) -> anyhow::Result<Self> {
 
        fs::create_dir_all(&in_path)?;
-
-        // create directory and fill with default templates if needed
+        // create templates directory and fill with default templates if needed
        if Self::path_not_found(&templatedir_path)? {
             fs::create_dir_all(&templatedir_path)?;
             Self::inflate_default_templates(&templatedir_path)?;
         }
 
         let mut handlebars = Handlebars::new();
-        handlebars.register_templates_directory(".hbs", templatedir_path)?;
+        handlebars.register_templates_directory(".hbs", &templatedir_path)?;
         handlebars.register_escape_fn(handlebars::no_escape);
         Ok(Web {
             in_path: in_path.as_ref().to_path_buf(),
             out_path: out_path.as_ref().to_path_buf(),
+            template_dir_path: templatedir_path.as_ref().to_path_buf(),
             doc_list: new_doc_list(in_path)?,
             template_registry: handlebars,
         })
     }
 
+    // given a `source_path` return corresponding output path
     fn outpath(&self, doc: &Document) -> std::io::Result<PathBuf> {
-        let rel_path = doc
+       let rel_path = doc
             .source_path
             .strip_prefix(&self.in_path)
             .expect("strip prefix match");
         Ok(self.out_path.join(rel_path))
-    }
-
-    fn create_dir_all(&self, path: &Path) -> std::io::Result<()> {
-        let dir = path.parent().unwrap();
-        if !dir.exists() {
-            std::fs::create_dir_all(dir)?;
-        }
-        Ok(())
     }
 
     fn make_book_internal(&self, author: &str, title: &str) -> anyhow::Result<()> {
@@ -192,17 +239,28 @@ impl Web<'_> {
         Ok(())
     }
 
-    fn prep_files(&self) -> anyhow::Result<()> {
+    // if folder exists, delete it & all contents and create new
+    fn clean_folder<P: AsRef<Path>>(path: P) -> std::io::Result<()> {
+        if Path::new(path.as_ref()).exists() {
+            fs::remove_dir_all(&path)?;
+        }
+        fs::create_dir_all(&path)?;
+        Ok(())
+    }
+
+    fn clean_and_setup_directories(&self) -> anyhow::Result<()> {
         if self.doc_list.len() == 0 {
             println!(
                 "\nplease add files to source directory: {}\n",
                 self.in_path.display()
             );
         }
+        Self::clean_folder(&self.out_path)?;
+        Self::copy_files(&self.template_dir_path, &self.out_path, "hbs")?;
         Ok(())
     }
     pub fn gen_book(&mut self) -> anyhow::Result<usize> {
-        self.prep_files()?;
+        self.clean_and_setup_directories()?;
         info!("generating ePub for {} files", self.doc_list.len());
 
         match self.make_book_internal("Author Name", "My Book") {
@@ -212,11 +270,11 @@ impl Web<'_> {
     }
 
     pub fn gen_website(&mut self) -> anyhow::Result<usize> {
-        self.prep_files()?;
+        self.clean_and_setup_directories()?;
         info!("generating html for {} files", self.doc_list.len());
         for doc in &self.doc_list {
             let outpath = self.outpath(doc)?;
-            self.create_dir_all(&outpath)?;
+            Self::create_all_parent_dir(&outpath)?;
             doc.webgen(&self)?;
         }
         Ok(self.doc_list.len())
