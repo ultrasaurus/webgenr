@@ -192,13 +192,17 @@ impl Web<'_> {
         Ok(())
     }
 
-    pub fn gen_book(&mut self) -> anyhow::Result<usize> {
+    fn prep_files(&self) -> anyhow::Result<()> {
         if self.doc_list.len() == 0 {
             println!(
                 "\nplease add files to source directory: {}\n",
                 self.in_path.display()
             );
         }
+        Ok(())
+    }
+    pub fn gen_book(&mut self) -> anyhow::Result<usize> {
+        self.prep_files()?;
         info!("generating ePub for {} files", self.doc_list.len());
 
         match self.make_book_internal("Author Name", "My Book") {
@@ -208,12 +212,7 @@ impl Web<'_> {
     }
 
     pub fn gen_website(&mut self) -> anyhow::Result<usize> {
-        if self.doc_list.len() == 0 {
-            println!(
-                "\nplease add markdown files (.md extension) to source directory: {}\n",
-                self.in_path.display()
-            );
-        }
+        self.prep_files()?;
         info!("generating html for {} files", self.doc_list.len());
         for doc in &self.doc_list {
             let outpath = self.outpath(doc)?;
