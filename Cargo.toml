@@ -1,8 +1,8 @@
 [package]
 name = "webgenr"
-version = "0.1.8"  # copy non-hbs files in templates (recursively)
+version = "0.1.9" 
 edition = "2021"
-authors = ["Sarah Allen"]
+authors = ["Sarah Allen", "Elliot Winard"]
 description = "generate static site from markdown, media files and metadata"
 
 [dependencies]

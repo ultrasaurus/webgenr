@@ -200,7 +200,7 @@ impl Document {
                         } else {
                             Cow::Borrowed("").into()
                         };
-                        Event::Html(format!("<a href=\"{}\" title=\"{}\" class=\"audio\">{}</a>",
+                        Event::Html(format!("<a href=\"{}\" title=\"{}\" class=\"audio\"><span class=\"fa-solid fa-play\">{}</span></a>",
                                 &url, &title, &link_text).into())
                     } else {
                         Event::Start(Tag::Link(link_type, url, title))
