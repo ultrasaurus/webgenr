@@ -1,6 +1,6 @@
 [package]
 name = "webgenr"
-version = "0.1.9" 
+version = "0.1.9" # play audio in-line, add FontAwesome ▶️ for audio
 edition = "2021"
 authors = ["Sarah Allen", "Elliot Winard"]
 description = "generate static site from markdown, media files and metadata"
