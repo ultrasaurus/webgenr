@@ -1,0 +1,24 @@
+name: GitHub Actions for webgenr
+
+on:
+  push:
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Running build...
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo install --verbose --path .
+    - name: Build examples
+      run: echo "TODO - build examples"
+    - name: Deploy
+      run: echo "TODO - deploy examples to gitlab"
