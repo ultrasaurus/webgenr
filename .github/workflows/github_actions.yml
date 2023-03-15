@@ -16,9 +16,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Dump stuff
+      run: |
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        echo $PATH
+        echo $GITHUB_PATH
     - name: Build
       run: cargo install --verbose --path .
     - name: Build examples
-      run: echo "TODO - build examples"
+      run: |
+       cd examples/nested-files
+       webgenr
+       cd ../simple-book
+       webgenr
     - name: Deploy
       run: echo "TODO - deploy examples to gitlab"
