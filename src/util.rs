@@ -22,3 +22,34 @@ pub fn get_ext(url: &CowStr) -> String {
         String::new()
     }
 }
+
+// return mimetype given an extension
+pub fn get_mimetype(ext: &str) -> String {
+    match ext {
+        "mp3" => "audio/mpeg",
+        "mp4" => "video/mp4",
+        "m4a" => "audio/mp4",
+        "wav" => "audio/wav",
+        "ogg" => "audio/ogg",
+        "jpg" => "image/jpeg",
+        "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        "gif" => "image/gif",
+        "svg" => "image/svg+xml",
+        "webp" => "image/webp",
+        "pdf" => "application/pdf",
+        "zip" => "application/zip",
+        "gz" => "application/gzip",
+        "tar" => "application/x-tar",
+        "txt" => "text/plain",
+        "md" => "text/markdown",
+        "html" => "text/html",
+        "css" => "text/css",
+        "js" => "text/javascript",
+        "json" => "application/json",
+        "xml" => "application/xml",
+        "yaml" => "text/yaml",
+        "yml" => "text/yaml",
+        _ => "application/octet-stream",
+    }.to_string()
+}
