@@ -12,3 +12,13 @@ pub fn is_audio_file(url: &CowStr) -> bool {
     }
     false
 }
+
+// return the extension of an url as a string
+pub fn get_ext(url: &CowStr) -> String {
+    let path = Path::new(url.as_ref());
+    if let Some(ext_osstr) = path.extension() {
+        ext_osstr.to_string_lossy().to_lowercase()
+    } else {
+        String::new()
+    }
+}
