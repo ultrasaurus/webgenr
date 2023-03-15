@@ -5,10 +5,22 @@ on:
   pull_request:
     branches: [ "main" ]
 
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+  
 env:
   CARGO_TERM_COLOR: always
+  
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
+  # separate build and deploy jobs
+  
+  # build webgenr and examples
   build:
     name: Running build...
     runs-on: ubuntu-latest
@@ -28,16 +40,17 @@ jobs:
          webgenr
          cd ../../
          
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v3.1.2
-        with:
-          # Artifact name
-          name: github-pages # optional, default is artifact
-          # A file, directory or wildcard pattern that describes what to upload
-          path: ./examples/nested-files/_website
+#       - name: Upload a Build examples Artifact
+#         uses: actions/upload-artifact@v3.1.2
+ #         with:
+#           # Artifact name
+#           name: github-pages # optional, default is artifact
+#           # A file, directory or wildcard pattern that describes what to upload
+#           path: ./examples/nested-files/_website
 
+  # deploy examples
   deploy:
-    name: Deploying build...
+    name: Deploying examples...
     needs: build
     runs-on: ubuntu-latest
 
@@ -51,8 +64,17 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
-    steps:
-         
+    steps: 
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+        
+      - name: Upload to pages
+        uses: actions/upload-pages-artifact@v1
+        with:
+          # A file, directory or wildcard pattern that describes what to upload
+          path: ./examples/nested-files/_website
+                   
+      # upload  
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v1
