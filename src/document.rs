@@ -195,13 +195,17 @@ impl Document {
                                 text
                             } else {
                                 // no text event, just Event::End
-                                Cow::Borrowed("").into()
+                                Cow::Borrowed("#").into()
                             }
                         } else {
                             Cow::Borrowed("").into()
                         };
-                        Event::Html(format!("<a href=\"{}\" title=\"{}\" class=\"audio\"><span class=\"fa-solid fa-play\">{}</span></a>",
-                                &url, &title, &link_text).into())
+                        let my_link_text= format!("<a href=\"{}\" title=\"{}\" class=\"audio\"><span class=\"fa-solid fa-play\">{}</span></a>",
+                                 &url, &title, &link_text);
+                        let my_html= format!("<audio controls><source src=\"{}\" type=\"audio/mpeg\">Your browser does not support the audio element. {}</audio>",
+                                &url, &my_link_text);
+                        Event::Html(my_html.into())
+
                     } else {
                         Event::Start(Tag::Link(link_type, url, title))
                     }
