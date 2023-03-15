@@ -16,6 +16,17 @@ env:
 concurrency:
   group: "pages"
   cancel-in-progress: false
+  
+
+# Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+permissions:
+  pages: write      # to deploy to Pages
+  id-token: write   # to verify the deployment originates from an appropriate source
+
+# Deploy to the github-pages environment
+environment:
+  name: github-pages
+  url: ${{ steps.deployment.outputs.page_url }}
 
 jobs:
   # separate build and deploy jobs
@@ -48,36 +59,38 @@ jobs:
 #           # A file, directory or wildcard pattern that describes what to upload
 #           path: ./examples/nested-files/_website
 
-  # deploy examples
-  deploy:
-    name: Deploying examples...
-    needs: build
-    runs-on: ubuntu-latest
+#   # deploy examples
+#   deploy:
+#     name: Deploying examples...
+#     needs: build
+#     runs-on: ubuntu-latest
 
-    # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
-    permissions:
-      pages: write      # to deploy to Pages
-      id-token: write   # to verify the deployment originates from an appropriate source
+#     # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+#     permissions:
+#       pages: write      # to deploy to Pages
+#       id-token: write   # to verify the deployment originates from an appropriate source
 
-    # Deploy to the github-pages environment
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+#     # Deploy to the github-pages environment
+#     environment:
+#       name: github-pages
+#       url: ${{ steps.deployment.outputs.page_url }}
 
-    steps: 
+#     steps: 
+
       - name: Setup Pages
         uses: actions/configure-pages@v3
         
       - name: Where are we?
         run: |
           pwd
-          find . 
+          ls -l
 
       - name: Upload to pages
         uses: actions/upload-pages-artifact@v1
         with:
           # A file, directory or wildcard pattern that describes what to upload
-          path: .
+          path: ./examples/nested-files/_website
+          
                    
       # upload  
       - name: Deploy to GitHub Pages
