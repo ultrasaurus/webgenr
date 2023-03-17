@@ -2,6 +2,8 @@
 
 work-in-progress, experimental
 
+demo: https://ultrasaurus.github.io/webgenr/
+
 ## Install & Run locally
 
 clone this repo, then from within the repo's top-level directory:
