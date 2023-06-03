@@ -7,7 +7,7 @@ pub fn is_audio_file(url: &CowStr) -> bool {
     if let Some(ext_osstr) = path.extension() {
         let extension = ext_osstr.to_string_lossy().to_lowercase();
         if audio_format.contains(&extension.as_str()) {
-            return true
+            return true;
         }
     }
     false
@@ -51,5 +51,33 @@ pub fn get_mimetype(ext: &str) -> String {
         "yaml" => "text/yaml",
         "yml" => "text/yaml",
         _ => "application/octet-stream",
-    }.to_string()
+    }
+    .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    // importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn test_get_ext_png() {
+        let result = get_ext(&CowStr::Borrowed("foo.png"));
+        assert_eq!(result, "png".to_string());
+    }
+    #[test]
+    fn test_get_ext_empty() {
+        let result = get_ext(&CowStr::Borrowed(""));
+        assert_eq!(result, "".to_string());
+    }
+    #[test]
+    fn test_get_mimetype_png() {
+        let result = get_mimetype(&CowStr::Borrowed("png"));
+        assert_eq!(result, "image/png".to_string());
+    }
+    #[test]
+    fn test_get_mimetype_empty() {
+        let result = get_mimetype(&CowStr::Borrowed(""));
+        assert_eq!(result, "application/octet-stream".to_string());
+    }
 }
