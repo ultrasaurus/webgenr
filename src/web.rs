@@ -21,6 +21,8 @@ pub struct Web<'a> {
 #[exclude = ".*"] // ignore hidden files
 struct Asset;
 
+//-- utlity functions
+// TODO: can Rust add them to DirEntry & Path?
 // return true if the DirEntry represents a hidden file or directory
 fn is_hidden(entry: &DirEntry) -> bool {
     entry
@@ -30,6 +32,18 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .unwrap_or(false)
 }
 
+// given a path, ensure that all parent directories of that path exist
+// and create any that don't exist
+fn create_all_parent_dir(path: &Path) -> std::io::Result<()> {
+    let dir = path.parent().unwrap();
+    if !dir.exists() {
+        std::fs::create_dir_all(dir)?;
+    }
+    Ok(())
+}
+
+// this is a weird plance for this function
+// TODO: consider refactoring once book/website feel done
 fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> anyhow::Result<Vec<Document>> {
     let mut vec: Vec<Document> = Vec::new();
     let root = path_ref.as_ref().to_path_buf();
@@ -48,14 +62,6 @@ fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> anyhow::Result<Vec<Document>> {
 }
 
 impl Web<'_> {
-    fn create_all_parent_dir(path: &Path) -> std::io::Result<()> {
-        let dir = path.parent().unwrap();
-        if !dir.exists() {
-            std::fs::create_dir_all(dir)?;
-        }
-        Ok(())
-    }
-
     // copy embedded templates into given directory path
     fn inflate_default_templates<P: AsRef<Path>>(templatedir_path: P) -> anyhow::Result<()> {
         info!("inflating default templates");
@@ -63,7 +69,7 @@ impl Web<'_> {
             info!("  {}", relative_path_str);
             let relative_path = PathBuf::from(relative_path_str.to_string());
             let new_template_path = Path::new("").join(&templatedir_path).join(&relative_path);
-            Self::create_all_parent_dir(&new_template_path)?;
+            create_all_parent_dir(&new_template_path)?;
             let mut file = std::fs::OpenOptions::new()
                 .write(true)
                 .create(true)
@@ -286,7 +292,7 @@ impl Web<'_> {
         info!("generating html for {} files", self.doc_list.len());
         for doc in &self.doc_list {
             let outpath = self.outpath(doc)?;
-            Self::create_all_parent_dir(&outpath)?;
+            create_all_parent_dir(&outpath)?;
             doc.webgen(&self)?;
         }
         Ok(self.doc_list.len())
