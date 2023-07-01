@@ -35,14 +35,20 @@ impl DirEntryExt for DirEntry {
     }
 }
 
-// given a path, ensure that all parent directories of that path exist
-// and create any that don't exist
-fn create_all_parent_dir(path: &Path) -> std::io::Result<()> {
-    let dir = path.parent().unwrap();
-    if !dir.exists() {
-        std::fs::create_dir_all(dir)?;
+trait PathExt {
+    // given a path, ensure that all parent directories of that path exist
+    // and create any that don't exist
+    fn create_all_parent_dir(&self) -> std::io::Result<()>;
+}
+
+impl PathExt for Path {
+    fn create_all_parent_dir(&self) -> std::io::Result<()> {
+        let dir = self.parent().unwrap();
+        if !dir.exists() {
+            std::fs::create_dir_all(dir)?;
+        }
+        Ok(())
     }
-    Ok(())
 }
 
 // this is a weird plance for this function
@@ -72,7 +78,7 @@ impl Web<'_> {
             info!("  {}", relative_path_str);
             let relative_path = PathBuf::from(relative_path_str.to_string());
             let new_template_path = Path::new("").join(&templatedir_path).join(&relative_path);
-            create_all_parent_dir(&new_template_path)?;
+            new_template_path.create_all_parent_dir()?;
             let mut file = std::fs::OpenOptions::new()
                 .write(true)
                 .create(true)
@@ -295,7 +301,7 @@ impl Web<'_> {
         info!("generating html for {} files", self.doc_list.len());
         for doc in &self.doc_list {
             let outpath = self.outpath(doc)?;
-            create_all_parent_dir(&outpath)?;
+            outpath.create_all_parent_dir()?;
             doc.webgen(&self)?;
         }
         Ok(self.doc_list.len())
