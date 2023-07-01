@@ -22,14 +22,17 @@ pub struct Web<'a> {
 struct Asset;
 
 //-- utlity functions
-// TODO: can Rust add them to DirEntry & Path?
 // return true if the DirEntry represents a hidden file or directory
-fn is_hidden(entry: &DirEntry) -> bool {
-    entry
-        .file_name()
-        .to_str()
-        .map(|s| s.starts_with("."))
-        .unwrap_or(false)
+trait DirEntryExt {
+    fn is_hidden(&self) -> bool;
+}
+impl DirEntryExt for DirEntry {
+    fn is_hidden(&self) -> bool {
+        self.file_name()
+            .to_str()
+            .map(|s| s.starts_with("."))
+            .unwrap_or(false)
+    }
 }
 
 // given a path, ensure that all parent directories of that path exist
@@ -49,7 +52,7 @@ fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> anyhow::Result<Vec<Document>> {
     let root = path_ref.as_ref().to_path_buf();
 
     let walker = WalkDir::new(root).follow_links(true).into_iter();
-    for entry_result in walker.filter_entry(|e| !is_hidden(e)) {
+    for entry_result in walker.filter_entry(|e| !e.is_hidden()) {
         let entry = entry_result?;
         let path = entry.path();
         if fs::metadata(path)?.is_file() {
@@ -91,7 +94,7 @@ impl Web<'_> {
         info!(" std::env::current_dir: {:?}", std::env::current_dir());
         let walker = WalkDir::new(&source_dir).follow_links(true).into_iter();
         for entry_result in walker
-            .filter_entry(|e| !is_hidden(e) && e.path().extension() != Some(OsStr::new(omit_ext)))
+            .filter_entry(|e| !e.is_hidden() && e.path().extension() != Some(OsStr::new(omit_ext)))
         {
             if let Ok(dir_entry) = entry_result {
                 let rel_path = dir_entry
