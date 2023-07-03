@@ -22,24 +22,6 @@ pub struct Web<'a> {
 #[exclude = ".*"] // ignore hidden files
 struct Asset;
 
-//-- utlity functions
-
-trait PathExt {
-    // given a path, ensure that all parent directories of that path exist
-    // and create any that don't exist
-    fn create_all_parent_dir(&self) -> std::io::Result<()>;
-}
-
-impl PathExt for Path {
-    fn create_all_parent_dir(&self) -> std::io::Result<()> {
-        let dir = self.parent().unwrap();
-        if !dir.exists() {
-            std::fs::create_dir_all(dir)?;
-        }
-        Ok(())
-    }
-}
-
 // this is a weird plance for this function
 // TODO: consider refactoring once book/website feel done
 fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> anyhow::Result<Vec<Document>> {
