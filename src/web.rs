@@ -1,4 +1,5 @@
 use crate::document::Document;
+use crate::util::*;
 use anyhow::Context;
 use handlebars::Handlebars;
 use rust_embed::RustEmbed;
@@ -6,7 +7,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use walkdir::{DirEntry, WalkDir};
+use walkdir::WalkDir;
 
 pub struct Web<'a> {
     pub in_path: PathBuf,
@@ -22,18 +23,6 @@ pub struct Web<'a> {
 struct Asset;
 
 //-- utlity functions
-// return true if the DirEntry represents a hidden file or directory
-trait DirEntryExt {
-    fn is_hidden(&self) -> bool;
-}
-impl DirEntryExt for DirEntry {
-    fn is_hidden(&self) -> bool {
-        self.file_name()
-            .to_str()
-            .map(|s| s.starts_with("."))
-            .unwrap_or(false)
-    }
-}
 
 trait PathExt {
     // given a path, ensure that all parent directories of that path exist

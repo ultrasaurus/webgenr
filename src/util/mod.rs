@@ -1,3 +1,5 @@
+mod dir_entry;
+pub use self::dir_entry::DirEntryExt;
 use pulldown_cmark::CowStr;
 use std::path::Path;
 
