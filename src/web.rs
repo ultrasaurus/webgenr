@@ -1,4 +1,5 @@
 use crate::document::Document;
+use crate::util::*;
 use anyhow::Context;
 use handlebars::Handlebars;
 use rust_embed::RustEmbed;
@@ -6,7 +7,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use walkdir::{DirEntry, WalkDir};
+use walkdir::WalkDir;
 
 pub struct Web<'a> {
     pub in_path: PathBuf,
@@ -21,21 +22,14 @@ pub struct Web<'a> {
 #[exclude = ".*"] // ignore hidden files
 struct Asset;
 
-// return true if the DirEntry represents a hidden file or directory
-fn is_hidden(entry: &DirEntry) -> bool {
-    entry
-        .file_name()
-        .to_str()
-        .map(|s| s.starts_with("."))
-        .unwrap_or(false)
-}
-
+// this is a weird plance for this function
+// TODO: consider refactoring once book/website feel done
 fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> anyhow::Result<Vec<Document>> {
     let mut vec: Vec<Document> = Vec::new();
     let root = path_ref.as_ref().to_path_buf();
 
     let walker = WalkDir::new(root).follow_links(true).into_iter();
-    for entry_result in walker.filter_entry(|e| !is_hidden(e)) {
+    for entry_result in walker.filter_entry(|e| !e.is_hidden()) {
         let entry = entry_result?;
         let path = entry.path();
         if fs::metadata(path)?.is_file() {
@@ -48,14 +42,6 @@ fn new_doc_list<P: AsRef<Path>>(path_ref: P) -> anyhow::Result<Vec<Document>> {
 }
 
 impl Web<'_> {
-    fn create_all_parent_dir(path: &Path) -> std::io::Result<()> {
-        let dir = path.parent().unwrap();
-        if !dir.exists() {
-            std::fs::create_dir_all(dir)?;
-        }
-        Ok(())
-    }
-
     // copy embedded templates into given directory path
     fn inflate_default_templates<P: AsRef<Path>>(templatedir_path: P) -> anyhow::Result<()> {
         info!("inflating default templates");
@@ -63,7 +49,7 @@ impl Web<'_> {
             info!("  {}", relative_path_str);
             let relative_path = PathBuf::from(relative_path_str.to_string());
             let new_template_path = Path::new("").join(&templatedir_path).join(&relative_path);
-            Self::create_all_parent_dir(&new_template_path)?;
+            new_template_path.create_all_parent_dir()?;
             let mut file = std::fs::OpenOptions::new()
                 .write(true)
                 .create(true)
@@ -85,7 +71,7 @@ impl Web<'_> {
         info!(" std::env::current_dir: {:?}", std::env::current_dir());
         let walker = WalkDir::new(&source_dir).follow_links(true).into_iter();
         for entry_result in walker
-            .filter_entry(|e| !is_hidden(e) && e.path().extension() != Some(OsStr::new(omit_ext)))
+            .filter_entry(|e| !e.is_hidden() && e.path().extension() != Some(OsStr::new(omit_ext)))
         {
             if let Ok(dir_entry) = entry_result {
                 let rel_path = dir_entry
@@ -286,7 +272,7 @@ impl Web<'_> {
         info!("generating html for {} files", self.doc_list.len());
         for doc in &self.doc_list {
             let outpath = self.outpath(doc)?;
-            Self::create_all_parent_dir(&outpath)?;
+            outpath.create_all_parent_dir()?;
             doc.webgen(&self)?;
         }
         Ok(self.doc_list.len())
