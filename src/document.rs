@@ -1,5 +1,6 @@
+use crate::util::{get_ext, get_mimetype, is_audio_file};
 use crate::Web;
-use crate::util::{is_audio_file, get_ext, get_mimetype};
+use anyhow::bail;
 use pulldown_cmark::{Event, Parser as MarkdownParser, Tag};
 use serde_json;
 use serde_yaml;
@@ -7,7 +8,6 @@ use std::borrow::Cow;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use anyhow::bail;
 
 pub struct FrontMatter {
     vars: std::collections::HashMap<String, String>,
@@ -90,12 +90,17 @@ impl Document {
     // is simply wrapper function for rust std api providing nice error messages
     pub fn file_stem(&self) -> anyhow::Result<&str> {
         match self.source_path.file_stem() {
-            Some(os_stem) =>
-                match os_stem.to_str() {
-                    Some(stem) => Ok(stem),
-                    None => bail!("Document: could not parse path, perhaps UTF8 conversion error for {}", self.source_path.display())
-                },
-            None => bail!("Document: unexpected empty file name for: {}", self.source_path.display()),
+            Some(os_stem) => match os_stem.to_str() {
+                Some(stem) => Ok(stem),
+                None => bail!(
+                    "Document: could not parse path, perhaps UTF8 conversion error for {}",
+                    self.source_path.display()
+                ),
+            },
+            None => bail!(
+                "Document: unexpected empty file name for: {}",
+                self.source_path.display()
+            ),
         }
     }
 
@@ -107,30 +112,9 @@ impl Document {
         Ok(out_dir.join(rel_path))
     }
 
-    pub fn webgen(&self, context: &Web) -> anyhow::Result<()> {
-        let outpath = self.outpath(&context.in_path, &context.out_path)?;
+    pub fn gen_html(&self, context: &Web) -> anyhow::Result<String> {
         match &self.info {
-            DocumentInfo::Other => {
-                // copy file
-                info!(
-                    "copy-> {}\t{}",
-                    self.source_path.display(),
-                    &outpath.display()
-                );
-                std::fs::copy(&self.source_path, outpath)?;
-            }
             DocumentInfo::Markdown { front_matter, text } => {
-                let out_file = fs::OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .open(outpath.with_extension("html"))?;
-                info!(
-                    "convert-> {}\t{}",
-                    self.source_path.display(),
-                    outpath.with_extension("html").display()
-                );
-                let mut writer = std::io::BufWriter::new(out_file);
-
                 // generate html
                 let mut html = Vec::new();
                 Self::write_html(&mut html, &text)?;
@@ -145,10 +129,62 @@ impl Document {
                     println!("warning: yaml var 'body' will be ignored");
                 }
 
-                let s = context
+                Ok(context
                     .template_registry
-                    .render("default", &serde_json::json!(template_vars))?;
+                    .render("default", &serde_json::json!(template_vars))?)
+            }
+            _ => {
+                // unimplemented, TODO: return appropriate error
+                bail!("unimplemented!")
+            }
+        }
+    }
 
+    pub fn webgen(&self, context: &Web) -> anyhow::Result<()> {
+        let outpath = self.outpath(&context.in_path, &context.out_path)?;
+        match &self.info {
+            DocumentInfo::Other => {
+                // copy file
+                info!(
+                    "copy-> {}\t{}",
+                    self.source_path.display(),
+                    &outpath.display()
+                );
+                std::fs::copy(&self.source_path, outpath)?;
+            }
+            DocumentInfo::Markdown {
+                front_matter: _,
+                text: _,
+            } => {
+                let out_file = fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open(outpath.with_extension("html"))?;
+                info!(
+                    "convert-> {}\t{}",
+                    self.source_path.display(),
+                    outpath.with_extension("html").display()
+                );
+                let mut writer = std::io::BufWriter::new(out_file);
+
+                // // generate html
+                // let mut html = Vec::new();
+                // Self::write_html(&mut html, &text)?;
+                // let html_string = String::from_utf8(html)?;
+
+                // // insert into handlebars template
+                // let mut template_vars = match front_matter {
+                //     Some(front_matter) => front_matter.vars.clone(),
+                //     None => Default::default(),
+                // };
+                // if let Some(_) = template_vars.insert("body".into(), html_string) {
+                //     println!("warning: yaml var 'body' will be ignored");
+                // }
+
+                // let s = context
+                //     .template_registry
+                //     .render("default", &serde_json::json!(template_vars))?;
+                let s = self.gen_html(context)?;
                 writer.write_all(s.as_bytes())?;
             }
         }
@@ -191,7 +227,7 @@ impl Document {
                     } else if is_audio_file(&url) {
                         let link_text = if let Some(next_event) = parser.next() {
                             if let Event::Text(text) = next_event {
-                                parser.next();  // skip Event::End
+                                parser.next(); // skip Event::End
                                 text
                             } else {
                                 // no text event, just Event::End
@@ -207,7 +243,6 @@ impl Document {
                         let my_html= format!("<audio controls><source src=\"{}\" type=\"{}\">Your browser does not support the audio element. {}</audio>",
                                 &url, my_mimetype, &my_link_text);
                         Event::Html(my_html.into())
-
                     } else {
                         Event::Start(Tag::Link(link_type, url, title))
                     }
@@ -215,10 +250,9 @@ impl Document {
                 _ => event,
             };
             new_event_list.push(next_event);
-        };
+        }
 
         pulldown_cmark::html::write_html(out_writer, new_event_list.into_iter())?;
         Ok(())
     }
-
 }

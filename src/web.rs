@@ -162,7 +162,8 @@ impl Web<'_> {
         use epub_builder::ZipLibrary;
         use std::fs::File;
 
-        let writer = std::fs::File::create("book.epub")?;
+        let epub_filename = "book.epub";
+        let writer = std::fs::File::create(epub_filename)?;
         let zip_lib = ZipLibrary::new().map_err(|err| anyhow!("initializing zip {:#?}", err))?;
         let mut epub =
             EpubBuilder::new(zip_lib).map_err(|err| anyhow!("initializing epub {:#?}", err))?;
@@ -209,24 +210,39 @@ impl Web<'_> {
                     .map_err(|err| anyhow!("adding title page to epub {:#?}", err))?;
                 }
                 _ => {
-                    let default_zip_path = format!("chapter{}.xhtml", chapter_number);
                     let chapter_title = format!("Chapter {}", chapter_number); // TODO: get from YAML front matter
-                    let zip_path = match doc.source_path.file_stem() {
-                        Some(os_str) => format!("{}.xhtml", os_str.to_string_lossy()),
-                        None => default_zip_path,
+                    let zip_path = format!("{}.xhtml", file_stem);
+                    if doc.is_markdown() {
+                        println!(
+                            "converting {}\tto {},\ttitle: {}",
+                            doc.source_path.display(),
+                            zip_path,
+                            chapter_title
+                        );
+
+                        // TODO: refactor webgen to create a fn that returns impl Read something
+                        let s = doc.gen_html(&self)?;
+                        epub.add_content(
+                            EpubContent::new(zip_path, s.as_bytes())
+                                .title(chapter_title)
+                                .reftype(ReferenceType::Text),
+                        )
+                        .map_err(|err| anyhow!("adding content to epub {:#?}", err))?;
+                    } else {
+                        println!(
+                            "adding {}\tas {},\ttitle: {}",
+                            doc.source_path.display(),
+                            zip_path,
+                            chapter_title
+                        );
+                        epub.add_content(
+                            EpubContent::new(zip_path, File::open(&doc.source_path)?)
+                                .title(chapter_title)
+                                .reftype(ReferenceType::Text),
+                        )
+                        .map_err(|err| anyhow!("adding content to epub {:#?}", err))?;
                     };
-                    println!(
-                        "adding {}\tas {},\ttitle: {}",
-                        doc.source_path.display(),
-                        zip_path,
-                        chapter_title
-                    );
-                    epub.add_content(
-                        EpubContent::new(zip_path, File::open(&doc.source_path)?)
-                            .title(chapter_title)
-                            .reftype(ReferenceType::Text),
-                    )
-                    .map_err(|err| anyhow!("adding content to epub {:#?}", err))?;
+
                     chapter_number = chapter_number + 1;
                 }
             } // match file_stem
@@ -234,6 +250,11 @@ impl Web<'_> {
         epub.generate(writer)
             .map_err(|err| anyhow!("generating epub {:#?}", err))?;
 
+        info!(
+            "book created: {}/{}",
+            self.out_path.display(),
+            epub_filename
+        );
         Ok(())
     }
 
