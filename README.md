@@ -72,6 +72,7 @@ until there are multiple maintainers or additional users.
     2. find an alternated library, or
     3. if @lisa-henry is going to actively maintain https://github.com/lise-henry/epub-builder
     since need PRs:
-        - https://github.com/lise-henry/epub-builder/pull/37
         - https://github.com/lise-henry/epub-builder/pull/34
+        - note: https://github.com/lise-henry/epub-builder/pull/41 was merged, as
+    a more complete solution to https://github.com/lise-henry/epub-builder/pull/37 -- should work for us, but untested
 
