@@ -44,7 +44,6 @@ fn main() {
     let cli = Cli::parse();
 
     if let Err(e) = process_files(cli) {
-        println!("Erorr processing files: {:#?}", e);
+        println!("Error processing files: {:#?}", e);
     }
-
 }
