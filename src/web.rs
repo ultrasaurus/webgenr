@@ -1,6 +1,7 @@
 use crate::document::Document;
 use crate::util::*;
 use anyhow::Context;
+use epub_builder::{EpubBuilder, ZipLibrary};
 use handlebars::Handlebars;
 use rust_embed::RustEmbed;
 use std::ffi::OsStr;
@@ -112,7 +113,7 @@ impl Web<'_> {
             match err.kind() {
                 std::io::ErrorKind::NotFound => return Ok(true),
                 _ => {
-                    error!("Error finding templates directory");
+                    error!("Error finding templates directory"); // TODO: remove 'templates' or take param?
                     return Err(err.into());
                 }
             }
@@ -154,19 +155,63 @@ impl Web<'_> {
         Ok(self.out_path.join(rel_path))
     }
 
+    fn add_template_stylesheet_files(
+        &self,
+        mut epub: EpubBuilder<ZipLibrary>,
+    ) -> anyhow::Result<EpubBuilder<ZipLibrary>> {
+        info!(
+            "add_template_stylesheet_files from {}",
+            self.template_dir_path.display()
+        );
+        info!("  std::env::current_dir: {:?}", std::env::current_dir());
+        let walker = WalkDir::new(&self.template_dir_path)
+            .follow_links(true)
+            .into_iter();
+
+        for entry_result in walker.filter_entry(|e| {
+            !e.is_hidden()
+                && e.file_type().is_file()
+                && e.path().extension() != Some(OsStr::new("hbs"))
+        }) {
+            if let Ok(dir_entry) = entry_result {
+                info!("  dir_entry: {:?}", dir_entry.path().display());
+
+                let rel_path = dir_entry
+                    .path()
+                    .strip_prefix(&self.template_dir_path)
+                    .expect("strip prefix match");
+
+                info!("  rel_path: {:?}", rel_path.display());
+                let mime_type = "image/png"; // FIXME
+                let result = epub.add_resource(rel_path, fs::File::open(rel_path)?, mime_type);
+                // TODO: figure out why "?" doesn't work at end of statement above
+                if result.is_err() {
+                    anyhow::bail!(
+                        "failed to add resource to epub: {}",
+                        dir_entry.path().display()
+                    )
+                }
+            }
+        }
+
+        Ok(epub)
+    }
+
     fn make_book_internal(&self, author: &str, title: &str) -> anyhow::Result<()> {
         use anyhow::anyhow;
-        use epub_builder::EpubBuilder;
         use epub_builder::EpubContent;
         use epub_builder::ReferenceType;
-        use epub_builder::ZipLibrary;
         use std::fs::File;
 
-        let epub_filename = "book.epub";
+        let epub_filename = "book.epub"; // TODO: use outpath or add book output path?
         let writer = std::fs::File::create(epub_filename)?;
         let zip_lib = ZipLibrary::new().map_err(|err| anyhow!("initializing zip {:#?}", err))?;
         let mut epub =
             EpubBuilder::new(zip_lib).map_err(|err| anyhow!("initializing epub {:#?}", err))?;
+
+        epub = self
+            .add_template_stylesheet_files(epub)
+            .map_err(|err| anyhow!("adding epub stylesheets {:#?}", err))?;
 
         epub.add_author(author);
         epub.set_title(title);
@@ -267,29 +312,35 @@ impl Web<'_> {
         Ok(())
     }
 
-    fn clean_and_setup_directories(&self) -> anyhow::Result<()> {
-        if self.doc_list.len() == 0 {
-            println!(
-                "\nplease add files to source directory: {}\n",
+    fn source_directory_has_files(&self) -> anyhow::Result<usize> {
+        let num_files = self.doc_list.len();
+        if num_files == 0 {
+            anyhow::bail!(
+                "please add files to source directory: {}",
                 self.in_path.display()
-            );
+            )
         }
-        Self::clean_folder(&self.out_path)?;
-        Self::copy_files(&self.template_dir_path, &self.out_path, "hbs")?;
-        Ok(())
+        Ok(num_files)
     }
     pub fn gen_book(&mut self) -> anyhow::Result<usize> {
-        self.clean_and_setup_directories()?;
+        self.source_directory_has_files()?;
         info!("generating ePub for {} files", self.doc_list.len());
 
         match self.make_book_internal("Author Name", "My Book") {
-            Err(e) => anyhow::bail!("Problem creating ebook: {:#?}", e),
+            Err(e) => anyhow::bail!("Problem creating ebook: {}", e),
             Ok(_) => Ok(self.doc_list.len()),
         }
     }
 
+    fn gen_website_clean_and_setup_outpath(&self) -> anyhow::Result<()> {
+        Self::clean_folder(&self.out_path)?;
+        Self::copy_files(&self.template_dir_path, &self.out_path, "hbs")?;
+        Ok(())
+    }
+
     pub fn gen_website(&mut self) -> anyhow::Result<usize> {
-        self.clean_and_setup_directories()?;
+        self.source_directory_has_files()?;
+        self.gen_website_clean_and_setup_outpath()?;
         info!("generating html for {} files", self.doc_list.len());
         for doc in &self.doc_list {
             let outpath = self.outpath(doc)?;
