@@ -224,12 +224,15 @@ impl Web<'_> {
                 "cover" | "_cover" => {
                     println!("cover: {}", doc.source_path.display());
                     let default_extension = "png";
-                    let extension = match doc.source_path.file_stem() {
+                    let extension = match doc.source_path.extension() {
                         Some(os_str) => match os_str.to_str() {
                             Some(str) => str,
                             None => {
-                                println!("can't convert file extension {:?} to str", os_str);
-                                default_extension
+                                // this should never happen, making it an error
+                                anyhow::bail!(
+                                    "unexpected cover image file extension '{:?}'",
+                                    os_str
+                                );
                             }
                         },
                         None => {
