@@ -168,12 +168,11 @@ impl Web<'_> {
             .follow_links(true)
             .into_iter();
 
-        for entry_result in walker.filter_entry(|e| {
-            !e.is_hidden()
-                && e.file_type().is_file()
-                && e.path().extension() != Some(OsStr::new("hbs"))
-        }) {
-            if let Ok(dir_entry) = entry_result {
+        for entry_result in walker
+            .filter_entry(|e| !e.is_hidden() && e.path().extension() != Some(OsStr::new("hbs")))
+        {
+            let dir_entry = entry_result?;
+            if dir_entry.file_type().is_file() {
                 info!("  dir_entry: {:?}", dir_entry.path().display());
 
                 let rel_path = dir_entry
@@ -181,9 +180,10 @@ impl Web<'_> {
                     .strip_prefix(&self.template_dir_path)
                     .expect("strip prefix match");
 
-                info!("  rel_path: {:?}", rel_path.display());
-                let mime_type = "image/png"; // FIXME
-                let result = epub.add_resource(rel_path, fs::File::open(rel_path)?, mime_type);
+                let mimetype = rel_path.mimetype();
+                info!("  rel_path: {}, mimetype: {}", rel_path.display(), mimetype);
+                let result =
+                    epub.add_resource(rel_path, fs::File::open(dir_entry.path())?, mimetype);
                 // TODO: figure out why "?" doesn't work at end of statement above
                 if result.is_err() {
                     anyhow::bail!(
@@ -193,7 +193,7 @@ impl Web<'_> {
                 }
             }
         }
-
+        info!("done");
         Ok(epub)
     }
 

@@ -65,7 +65,10 @@ until there are multiple maintainers or additional users.
     also look for `.markdown`
 
 ### TODO - tech debt
-- need to write some automated tests
+- need to write some more automated tests
+- stylesheet.css is auto-generated for TOC, consider moving book contents
+  into subdirectory OR something else, otherwise if someone creates
+  stylesheet.css at root not sure what will happen
 - currently using https://github.com/ultrasaurus/epub-builder.
   At some point, need to figure out if we need to:
     1. hard fork the library we're using "own" the epub making code
@@ -74,4 +77,5 @@ until there are multiple maintainers or additional users.
     since need PRs:
         - https://github.com/lise-henry/epub-builder/pull/37
         - https://github.com/lise-henry/epub-builder/pull/34
+
 
