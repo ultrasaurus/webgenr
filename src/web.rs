@@ -295,11 +295,7 @@ impl Web<'_> {
         epub.generate(writer)
             .map_err(|err| anyhow!("generating epub {:#?}", err))?;
 
-        info!(
-            "book created: {}/{}",
-            self.out_path.display(),
-            epub_filename
-        );
+        info!("book created: {}", epub_filename);
         Ok(())
     }
 
