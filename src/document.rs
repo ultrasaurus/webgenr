@@ -238,10 +238,10 @@ impl Document {
                         };
                         let my_link_text= format!("<a href=\"{}\" title=\"{}\" class=\"audio\"><span class=\"fa-solid fa-play\">{}</span></a>",
                                  &url, &title, &link_text);
-                        let my_ext = get_ext(&url);
+                        let my_ext = get_ext(url.clone());
                         let my_mimetype = get_mimetype(&my_ext);
                         let my_html= format!("<audio controls><source src=\"{}\" type=\"{}\">Your browser does not support the audio element. {}</audio>",
-                                &url, my_mimetype, &my_link_text);
+                                url, my_mimetype, &my_link_text);
                         Event::Html(my_html.into())
                     } else {
                         Event::Start(Tag::Link(link_type, url, title))

@@ -1,6 +1,7 @@
 mod dir_entry;
 pub use self::dir_entry::DirEntryExt;
 mod path;
+pub use self::path::get_ext;
 pub use self::path::PathExt;
 
 use pulldown_cmark::CowStr;
@@ -18,18 +19,9 @@ pub fn is_audio_file(url: &CowStr) -> bool {
     false
 }
 
-// return the extension of an url as a string
-pub fn get_ext(url: &CowStr) -> String {
-    let path = Path::new(url.as_ref());
-    if let Some(ext_osstr) = path.extension() {
-        ext_osstr.to_string_lossy().to_lowercase()
-    } else {
-        String::new()
-    }
-}
-
 // return mimetype given an extension
 pub fn get_mimetype(ext: &str) -> String {
+    info!("get_mimetype for: {}", ext);
     match ext {
         "mp3" => "audio/mpeg",
         "mp4" => "video/mp4",
@@ -67,12 +59,12 @@ mod tests {
 
     #[test]
     fn test_get_ext_png() {
-        let result = get_ext(&CowStr::Borrowed("foo.png"));
+        let result = get_ext("foo.png");
         assert_eq!(result, "png".to_string());
     }
     #[test]
     fn test_get_ext_empty() {
-        let result = get_ext(&CowStr::Borrowed(""));
+        let result = get_ext("");
         assert_eq!(result, "".to_string());
     }
     #[test]
