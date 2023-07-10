@@ -247,12 +247,28 @@ impl Web<'_> {
                 "title" | "_title" => {
                     println!("title page: {}", doc.source_path.display());
                     let file_name = doc.source_path.file_name().unwrap().to_string_lossy();
-                    epub.add_content(
-                        EpubContent::new(file_name, File::open(&doc.source_path)?)
-                            .title("Title Page")
-                            .reftype(ReferenceType::TitlePage),
-                    )
-                    .map_err(|err| anyhow!("adding title page to epub {:#?}", err))?;
+                    if doc.is_markdown() {
+                        println!(
+                            "converting {}\tto {} for title page",
+                            doc.source_path.display(),
+                            file_name
+                        );
+                        // TODO: refactor webgen to create a fn that returns impl Read something
+                        let s: String = doc.gen_html(&self)?;
+                        epub.add_content(
+                            EpubContent::new(file_name, s.as_bytes())
+                                .title("Title Page")
+                                .reftype(ReferenceType::TitlePage),
+                        )
+                        .map_err(|err| anyhow!("adding title page to epub {:#?}", err))?;
+                    } else {
+                        epub.add_content(
+                            EpubContent::new(file_name, File::open(&doc.source_path)?)
+                                .title("Title Page")
+                                .reftype(ReferenceType::TitlePage),
+                        )
+                        .map_err(|err| anyhow!("adding title page to epub {:#?}", err))?;
+                    }
                 }
                 _ => {
                     let chapter_title = format!("Chapter {}", chapter_number); // TODO: get from YAML front matter
@@ -266,7 +282,7 @@ impl Web<'_> {
                         );
 
                         // TODO: refactor webgen to create a fn that returns impl Read something
-                        let s = doc.gen_html(&self)?;
+                        let s: String = doc.gen_html(&self)?;
                         epub.add_content(
                             EpubContent::new(zip_path, s.as_bytes())
                                 .title(chapter_title)
