@@ -1,6 +1,7 @@
 use crate::document::Document;
 use crate::util::*;
 use anyhow::Context;
+use epub_builder::{EpubBuilder, ZipLibrary};
 use handlebars::Handlebars;
 use rust_embed::RustEmbed;
 use std::ffi::OsStr;
@@ -112,7 +113,7 @@ impl Web<'_> {
             match err.kind() {
                 std::io::ErrorKind::NotFound => return Ok(true),
                 _ => {
-                    error!("Error finding templates directory");
+                    error!("Error finding templates directory"); // TODO: remove 'templates' or take param?
                     return Err(err.into());
                 }
             }
@@ -154,18 +155,63 @@ impl Web<'_> {
         Ok(self.out_path.join(rel_path))
     }
 
+    fn add_template_stylesheet_files(
+        &self,
+        mut epub: EpubBuilder<ZipLibrary>,
+    ) -> anyhow::Result<EpubBuilder<ZipLibrary>> {
+        info!(
+            "add_template_stylesheet_files from {}",
+            self.template_dir_path.display()
+        );
+        info!("  std::env::current_dir: {:?}", std::env::current_dir());
+        let walker = WalkDir::new(&self.template_dir_path)
+            .follow_links(true)
+            .into_iter();
+
+        for entry_result in walker
+            .filter_entry(|e| !e.is_hidden() && e.path().extension() != Some(OsStr::new("hbs")))
+        {
+            let dir_entry = entry_result?;
+            if dir_entry.file_type().is_file() {
+                info!("  dir_entry: {:?}", dir_entry.path().display());
+
+                let rel_path = dir_entry
+                    .path()
+                    .strip_prefix(&self.template_dir_path)
+                    .expect("strip prefix match");
+
+                let mimetype = rel_path.mimetype();
+                info!("  rel_path: {}, mimetype: {}", rel_path.display(), mimetype);
+                let result =
+                    epub.add_resource(rel_path, fs::File::open(dir_entry.path())?, mimetype);
+                // TODO: figure out why "?" doesn't work at end of statement above
+                if result.is_err() {
+                    anyhow::bail!(
+                        "failed to add resource to epub: {}",
+                        dir_entry.path().display()
+                    )
+                }
+            }
+        }
+        info!("done");
+        Ok(epub)
+    }
+
     fn make_book_internal(&self, author: &str, title: &str) -> anyhow::Result<()> {
         use anyhow::anyhow;
-        use epub_builder::EpubBuilder;
         use epub_builder::EpubContent;
         use epub_builder::ReferenceType;
-        use epub_builder::ZipLibrary;
         use std::fs::File;
 
-        let writer = std::fs::File::create("book.epub")?;
+        let epub_filename = "book.epub"; // TODO: use outpath or add book output path?
+        let writer = std::fs::File::create(epub_filename)?;
         let zip_lib = ZipLibrary::new().map_err(|err| anyhow!("initializing zip {:#?}", err))?;
         let mut epub =
             EpubBuilder::new(zip_lib).map_err(|err| anyhow!("initializing epub {:#?}", err))?;
+
+        epub = self
+            .add_template_stylesheet_files(epub)
+            .map_err(|err| anyhow!("adding epub stylesheets {:#?}", err))?;
 
         epub.add_author(author);
         epub.set_title(title);
@@ -178,12 +224,15 @@ impl Web<'_> {
                 "cover" | "_cover" => {
                     println!("cover: {}", doc.source_path.display());
                     let default_extension = "png";
-                    let extension = match doc.source_path.file_stem() {
+                    let extension = match doc.source_path.extension() {
                         Some(os_str) => match os_str.to_str() {
                             Some(str) => str,
                             None => {
-                                println!("can't convert file extension {:?} to str", os_str);
-                                default_extension
+                                // this should never happen, making it an error
+                                anyhow::bail!(
+                                    "unexpected cover image file extension '{:?}'",
+                                    os_str
+                                );
                             }
                         },
                         None => {
@@ -201,32 +250,63 @@ impl Web<'_> {
                 "title" | "_title" => {
                     println!("title page: {}", doc.source_path.display());
                     let file_name = doc.source_path.file_name().unwrap().to_string_lossy();
-                    epub.add_content(
-                        EpubContent::new(file_name, File::open(&doc.source_path)?)
-                            .title("Title Page")
-                            .reftype(ReferenceType::TitlePage),
-                    )
-                    .map_err(|err| anyhow!("adding title page to epub {:#?}", err))?;
+                    if doc.is_markdown() {
+                        println!(
+                            "converting {}\tto {} for title page",
+                            doc.source_path.display(),
+                            file_name
+                        );
+                        // TODO: refactor webgen to create a fn that returns impl Read something
+                        let s: String = doc.gen_html(&self)?;
+                        epub.add_content(
+                            EpubContent::new(file_name, s.as_bytes())
+                                .title("Title Page")
+                                .reftype(ReferenceType::TitlePage),
+                        )
+                        .map_err(|err| anyhow!("adding title page to epub {:#?}", err))?;
+                    } else {
+                        epub.add_content(
+                            EpubContent::new(file_name, File::open(&doc.source_path)?)
+                                .title("Title Page")
+                                .reftype(ReferenceType::TitlePage),
+                        )
+                        .map_err(|err| anyhow!("adding title page to epub {:#?}", err))?;
+                    }
                 }
                 _ => {
-                    let default_zip_path = format!("chapter{}.xhtml", chapter_number);
                     let chapter_title = format!("Chapter {}", chapter_number); // TODO: get from YAML front matter
-                    let zip_path = match doc.source_path.file_stem() {
-                        Some(os_str) => format!("{}.xhtml", os_str.to_string_lossy()),
-                        None => default_zip_path,
+                    let zip_path = format!("{}.xhtml", file_stem);
+                    if doc.is_markdown() {
+                        println!(
+                            "converting {}\tto {},\ttitle: {}",
+                            doc.source_path.display(),
+                            zip_path,
+                            chapter_title
+                        );
+
+                        // TODO: refactor webgen to create a fn that returns impl Read something
+                        let s: String = doc.gen_html(&self)?;
+                        epub.add_content(
+                            EpubContent::new(zip_path, s.as_bytes())
+                                .title(chapter_title)
+                                .reftype(ReferenceType::Text),
+                        )
+                        .map_err(|err| anyhow!("adding content to epub {:#?}", err))?;
+                    } else {
+                        println!(
+                            "adding {}\tas {},\ttitle: {}",
+                            doc.source_path.display(),
+                            zip_path,
+                            chapter_title
+                        );
+                        epub.add_content(
+                            EpubContent::new(zip_path, File::open(&doc.source_path)?)
+                                .title(chapter_title)
+                                .reftype(ReferenceType::Text),
+                        )
+                        .map_err(|err| anyhow!("adding content to epub {:#?}", err))?;
                     };
-                    println!(
-                        "adding {}\tas {},\ttitle: {}",
-                        doc.source_path.display(),
-                        zip_path,
-                        chapter_title
-                    );
-                    epub.add_content(
-                        EpubContent::new(zip_path, File::open(&doc.source_path)?)
-                            .title(chapter_title)
-                            .reftype(ReferenceType::Text),
-                    )
-                    .map_err(|err| anyhow!("adding content to epub {:#?}", err))?;
+
                     chapter_number = chapter_number + 1;
                 }
             } // match file_stem
@@ -234,6 +314,7 @@ impl Web<'_> {
         epub.generate(writer)
             .map_err(|err| anyhow!("generating epub {:#?}", err))?;
 
+        info!("book created: {}", epub_filename);
         Ok(())
     }
 
@@ -246,29 +327,35 @@ impl Web<'_> {
         Ok(())
     }
 
-    fn clean_and_setup_directories(&self) -> anyhow::Result<()> {
-        if self.doc_list.len() == 0 {
-            println!(
-                "\nplease add files to source directory: {}\n",
+    fn source_directory_has_files(&self) -> anyhow::Result<usize> {
+        let num_files = self.doc_list.len();
+        if num_files == 0 {
+            anyhow::bail!(
+                "please add files to source directory: {}",
                 self.in_path.display()
-            );
+            )
         }
-        Self::clean_folder(&self.out_path)?;
-        Self::copy_files(&self.template_dir_path, &self.out_path, "hbs")?;
-        Ok(())
+        Ok(num_files)
     }
     pub fn gen_book(&mut self) -> anyhow::Result<usize> {
-        self.clean_and_setup_directories()?;
+        self.source_directory_has_files()?;
         info!("generating ePub for {} files", self.doc_list.len());
 
         match self.make_book_internal("Author Name", "My Book") {
-            Err(e) => anyhow::bail!("Problem creating ebook: {:#?}", e),
+            Err(e) => anyhow::bail!("Problem creating ebook: {}", e),
             Ok(_) => Ok(self.doc_list.len()),
         }
     }
 
+    fn gen_website_clean_and_setup_outpath(&self) -> anyhow::Result<()> {
+        Self::clean_folder(&self.out_path)?;
+        Self::copy_files(&self.template_dir_path, &self.out_path, "hbs")?;
+        Ok(())
+    }
+
     pub fn gen_website(&mut self) -> anyhow::Result<usize> {
-        self.clean_and_setup_directories()?;
+        self.source_directory_has_files()?;
+        self.gen_website_clean_and_setup_outpath()?;
         info!("generating html for {} files", self.doc_list.len());
         for doc in &self.doc_list {
             let outpath = self.outpath(doc)?;
