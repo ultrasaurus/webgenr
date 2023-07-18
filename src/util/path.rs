@@ -39,6 +39,7 @@ pub trait PathExt {
     fn create_all_parent_dir(&self) -> std::io::Result<()>;
     fn get_ext(&self) -> Cow<'static, str>;
     fn mimetype(&self) -> Cow<'static, str>;
+    fn is_markdown(&self) -> bool;
 }
 
 impl PathExt for Path {
@@ -59,6 +60,14 @@ impl PathExt for Path {
     }
     fn mimetype(&self) -> Cow<'static, str> {
         get_mimetype(&self.get_ext())
+    }
+    fn is_markdown(&self) -> bool {
+        if let Some(ext) = self.extension() {
+            if ext == "md" || ext == "markdown" {
+                return true;
+            }
+        }
+        false
     }
 }
 

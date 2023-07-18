@@ -1,4 +1,4 @@
-use crate::util::{get_ext, get_mimetype, is_audio_file};
+use crate::util::*;
 use crate::Web;
 use anyhow::bail;
 use pulldown_cmark::{Event, Parser as MarkdownParser, Tag};
@@ -67,7 +67,8 @@ pub struct Document {
 
 impl Document {
     pub fn new<P: AsRef<Path>>(source_path: P) -> anyhow::Result<Self> {
-        let info = if Self::is_markdown_path(&source_path) {
+        let source_pathbuf = source_path.as_ref().to_path_buf();
+        let info = if source_pathbuf.is_markdown() {
             let mut f = fs::File::open(&source_path)?;
             let mut markdown = String::new();
             f.read_to_string(&mut markdown)?;
@@ -80,7 +81,7 @@ impl Document {
             DocumentInfo::Other
         };
         Ok(Document {
-            source_path: source_path.as_ref().to_path_buf(),
+            source_path: source_pathbuf,
             info,
         })
     }
@@ -195,15 +196,6 @@ impl Document {
             DocumentInfo::Markdown { .. } => true,
             _ => false,
         }
-    }
-
-    pub fn is_markdown_path<P: AsRef<Path>>(path: P) -> bool {
-        if let Some(ext) = path.as_ref().to_path_buf().extension() {
-            if ext == "md" || ext == "markdown" {
-                return true;
-            }
-        }
-        false
     }
 
     // private utility function
