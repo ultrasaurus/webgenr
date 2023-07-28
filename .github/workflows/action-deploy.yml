@@ -44,7 +44,9 @@ jobs:
         run: |
          cd examples/nested-files
          webgenr
-         cd ../simple-book
+         cd ../book-md
+         webgenr
+         cd ../book-html
          webgenr
          cd ../../
 
