@@ -4,7 +4,6 @@ use anyhow::bail;
 use pulldown_cmark::{Event, Parser as MarkdownParser, Tag};
 use serde_json;
 use serde_yaml;
-use std::borrow::Cow;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -212,31 +211,42 @@ impl Document {
         while let Some(event) = parser.next() {
             let next_event = match event {
                 Event::Start(Tag::Link(link_type, url, title)) => {
-                    let md_suffix = ".md";
-                    if url.ends_with(md_suffix) {
-                        let new_url = format!("{}.html", url.trim_end_matches(md_suffix));
-                        Event::Start(Tag::Link(link_type, new_url.into(), title))
-                    } else if is_audio_file(&url) {
-                        let link_text = if let Some(next_event) = parser.next() {
-                            if let Event::Text(text) = next_event {
-                                parser.next(); // skip Event::End
-                                text
-                            } else {
-                                // no text event, just Event::End
-                                Cow::Borrowed("#").into()
+                    match mime_guess::from_path(url.to_string()).first() {
+                        None => {
+                            // no extension or no matching mime for extension
+                            // just return the link unmodified
+                            Event::Start(Tag::Link(link_type, url, title))
+                        }
+                        Some(mimetype) => {
+                            match (mimetype.type_(), mimetype.subtype()) {
+                                (mime::TEXT, subtype) if subtype == "markdown" => {
+                                    // TODO: remove any extension, not just .md
+                                    // this will fail for .markdown
+                                    let new_url = format!("{}.html", url.trim_end_matches(".md"));
+                                    Event::Start(Tag::Link(link_type, new_url.into(), title))
+                                }
+                                (mime::AUDIO, _) => {
+                                    let link_text = if let Some(next_event) = parser.next() {
+                                        if let Event::Text(text) = next_event {
+                                            parser.next(); // skip past Event::End
+                                            text
+                                        } else {
+                                            // no text event, just Event::End
+                                            "#".into()
+                                        }
+                                    } else {
+                                        "".into()
+                                    };
+                                    // TODO: do we need to escape any text?  or is it already done elsewhere?
+                                    let link_tag= format!("<a href=\"{}\" title=\"{}\" class=\"audio\"><span class=\"fa-solid fa-play\">{}</span></a>",
+                                        &url, &title, &link_text);
+                                    let audio_tag= format!("<audio controls><source src=\"{}\" type=\"{}\">Your browser does not support the audio element. {}</audio>",
+                                        url, mimetype, &link_tag);
+                                    Event::Html(audio_tag.into())
+                                }
+                                (_, _) => Event::Start(Tag::Link(link_type, url, title)),
                             }
-                        } else {
-                            Cow::Borrowed("").into()
-                        };
-                        let my_link_text= format!("<a href=\"{}\" title=\"{}\" class=\"audio\"><span class=\"fa-solid fa-play\">{}</span></a>",
-                                 &url, &title, &link_text);
-                        let my_ext = get_ext(url.clone());
-                        let my_mimetype = get_mimetype(&my_ext);
-                        let my_html= format!("<audio controls><source src=\"{}\" type=\"{}\">Your browser does not support the audio element. {}</audio>",
-                                url, my_mimetype, &my_link_text);
-                        Event::Html(my_html.into())
-                    } else {
-                        Event::Start(Tag::Link(link_type, url, title))
+                        }
                     }
                 }
                 _ => event,
@@ -246,5 +256,62 @@ impl Document {
 
         pulldown_cmark::html::write_html(out_writer, new_event_list.into_iter())?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const HELLO_MD: &str = "hello world...";
+    const HELLO_HTML: &str = "<p>hello world...</p>\n";
+
+    const EMPTY_BUF: &[u8] = b"";
+
+    #[test]
+    fn test_write_html_empty() {
+        let markdown = "".to_string();
+        let mut output = Vec::new();
+        Document::write_html(&mut output, &markdown).unwrap();
+        assert_eq!(&output, EMPTY_BUF);
+    }
+
+    #[test]
+    fn test_write_html_simple_string() {
+        let markdown: String = HELLO_MD.to_string();
+        let mut output = Vec::new();
+        Document::write_html(&mut output, &markdown).unwrap();
+        let output_str = std::str::from_utf8(&output).unwrap();
+        assert_eq!(output_str, HELLO_HTML);
+    }
+
+    #[test]
+    // test of standard CommonMark formatting
+    fn test_write_html_cmark_basics() {
+        struct TestData<'a> {
+            md: &'a str,
+            html: &'a str,
+        }
+        let test_data = vec![
+            TestData {
+                md: "hello",
+                html: "<p>hello</p>\n",
+            },
+            TestData {
+                md: "* one\n* two",
+                html: "<ul>\n<li>one</li>\n<li>two</li>\n</ul>\n",
+            },
+            TestData {
+                md: "link: [thing](https://example.com/thing)",
+                html: "<p>link: <a href=\"https://example.com/thing\">thing</a></p>\n",
+            },
+        ];
+        test_data.iter().for_each(|test| {
+            let markdown: String = test.md.to_string();
+            let mut output = Vec::new();
+            Document::write_html(&mut output, &markdown).unwrap();
+            let output_str = std::str::from_utf8(&output).unwrap();
+            assert_eq!(output_str, test.html);
+        });
     }
 }
