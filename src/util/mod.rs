@@ -11,7 +11,7 @@ use std::{borrow::Cow, path::Path};
 // or empty string, if there is no extension
 pub fn get_ext<T: AsRef<str>>(url: T) -> Cow<'static, str> {
     let path = Path::new(url.as_ref());
-    path.get_ext()
+    path.get_ext().unwrap_or(Cow::Borrowed(""))
 }
 
 pub fn is_audio_file(url: &CowStr) -> bool {

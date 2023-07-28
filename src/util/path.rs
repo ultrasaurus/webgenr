@@ -37,7 +37,7 @@ pub trait PathExt {
     // given a path, ensure that all parent directories of that path exist
     // and create any that don't exist
     fn create_all_parent_dir(&self) -> std::io::Result<()>;
-    fn get_ext(&self) -> Cow<'static, str>;
+    fn get_ext(&self) -> Option<Cow<'static, str>>;
     fn mimetype(&self) -> Cow<'static, str>;
     fn is_markdown(&self) -> bool;
 }
@@ -51,15 +51,16 @@ impl PathExt for Path {
         Ok(())
     }
 
-    fn get_ext(&self) -> Cow<'static, str> {
+    fn get_ext(&self) -> Option<Cow<'static, str>> {
         if let Some(ext_osstr) = self.extension() {
-            Cow::Owned(ext_osstr.to_string_lossy().to_lowercase())
+            Some(Cow::Owned(ext_osstr.to_string_lossy().to_lowercase()))
         } else {
-            Cow::Borrowed("")
+            None
         }
     }
     fn mimetype(&self) -> Cow<'static, str> {
-        get_mimetype(&self.get_ext())
+        let ext = self.get_ext().unwrap_or(Cow::Borrowed(""));
+        get_mimetype(&ext)
     }
     fn is_markdown(&self) -> bool {
         if let Some(ext) = self.extension() {
@@ -78,13 +79,13 @@ mod tests {
 
     #[test]
     fn test_get_ext_png() {
-        let result = Path::new("foo.png").get_ext();
+        let result = Path::new("foo.png").get_ext().unwrap();
         assert_eq!(result, "png".to_string());
     }
     #[test]
     fn test_get_ext_empty() {
         let result = Path::new("").get_ext();
-        assert_eq!(result, "".to_string());
+        assert_eq!(result, None);
     }
     #[test]
     fn test_get_mimetype_png() {
