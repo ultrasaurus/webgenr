@@ -237,7 +237,6 @@ impl Document {
                                     } else {
                                         "".into()
                                     };
-                                    // TODO: do we need to escape any text?  or is it already done elsewhere?
                                     let link_tag= format!("<a href=\"{}\" title=\"{}\" class=\"audio\"><span class=\"fa-solid fa-play\">{}</span></a>",
                                         &url, &title, &link_text);
                                     let audio_tag= format!("<audio controls><source src=\"{}\" type=\"{}\">Your browser does not support the audio element. {}</audio>",
@@ -294,16 +293,24 @@ mod tests {
         }
         let test_data = vec![
             TestData {
+                // basic text
                 md: "hello",
                 html: "<p>hello</p>\n",
             },
             TestData {
+                // unordered list
                 md: "* one\n* two",
                 html: "<ul>\n<li>one</li>\n<li>two</li>\n</ul>\n",
             },
             TestData {
+                // simple link
                 md: "link: [thing](https://example.com/thing)",
                 html: "<p>link: <a href=\"https://example.com/thing\">thing</a></p>\n",
+            },
+            TestData {
+                // link with mis-matched quote in title
+                md: r#"link: ["thing](https://example.com/thing)"#,
+                html: "<p>link: <a href=\"https://example.com/thing\">&quot;thing</a></p>\n",
             },
         ];
         test_data.iter().for_each(|test| {
