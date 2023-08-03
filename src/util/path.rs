@@ -9,6 +9,7 @@ pub trait PathExt {
     // and create any that don't exist
     fn create_all_parent_dir(&self) -> std::io::Result<()>;
     fn get_ext(&self) -> Option<Cow<'static, str>>;
+    fn get_ext_str(&self) -> Option<&str>;
     fn mimetype(&self) -> Option<Mime>;
     fn is_markdown(&self) -> bool;
 }
@@ -22,6 +23,13 @@ impl PathExt for Path {
         Ok(())
     }
 
+    fn get_ext_str(&self) -> Option<&str> {
+        if let Some(ext_osstr) = self.extension() {
+            ext_osstr.to_str()
+        } else {
+            None
+        }
+    }
     fn get_ext(&self) -> Option<Cow<'static, str>> {
         if let Some(ext_osstr) = self.extension() {
             Some(Cow::Owned(ext_osstr.to_string_lossy().to_lowercase()))

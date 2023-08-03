@@ -211,7 +211,8 @@ impl Document {
         while let Some(event) = parser.next() {
             let next_event = match event {
                 Event::Start(Tag::Link(link_type, url, title)) => {
-                    match mime_guess::from_path(url.to_string()).first() {
+                    let url_string = url.to_string();
+                    match mime_guess::from_path(&url_string).first() {
                         None => {
                             // no extension or no matching mime for extension
                             // just return the link unmodified
@@ -220,9 +221,11 @@ impl Document {
                         Some(mimetype) => {
                             match (mimetype.type_(), mimetype.subtype()) {
                                 (mime::TEXT, subtype) if subtype == "markdown" => {
-                                    // TODO: remove any extension, not just .md
-                                    // this will fail for .markdown
-                                    let new_url = format!("{}.html", url.trim_end_matches(".md"));
+                                    // already know we have valid URL with extension
+                                    // so no need for additional error checking
+                                    let ext = Path::new(&url_string).get_ext_str().unwrap();
+                                    let new_url: String =
+                                        format!("{}html", url.trim_end_matches(ext));
                                     Event::Start(Tag::Link(link_type, new_url.into(), title))
                                 }
                                 (mime::AUDIO, _) => {
@@ -330,11 +333,18 @@ mod tests {
     #[test]
     // test of converting markdwon links to .html
     fn test_write_html_link_to_markdown() {
-        let test_data = vec![TestData {
-            // .md link conversion to .html
-            md: "link: [thing](https://example.com/thing.md)",
-            html: "<p>link: <a href=\"https://example.com/thing.html\">thing</a></p>\n",
-        }];
+        let test_data = vec![
+            TestData {
+                // .md link conversion to .html
+                md: "link: [thing](https://example.com/thing.md)",
+                html: "<p>link: <a href=\"https://example.com/thing.html\">thing</a></p>\n",
+            },
+            TestData {
+                // .markdown link conversion to .html
+                md: "link: [thing](https://example.com/thing.markdown)",
+                html: "<p>link: <a href=\"https://example.com/thing.html\">thing</a></p>\n",
+            },
+        ];
         verify_write_html_with_test_data(test_data);
     }
 }
