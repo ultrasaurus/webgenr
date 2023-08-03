@@ -284,13 +284,24 @@ mod tests {
         assert_eq!(output_str, HELLO_HTML);
     }
 
+    struct TestData<'a> {
+        md: &'a str,
+        html: &'a str,
+    }
+
+    fn verify_write_html_with_test_data(test_data: Vec<TestData>) {
+        test_data.iter().for_each(|test| {
+            let markdown: String = test.md.to_string();
+            let mut output = Vec::new();
+            Document::write_html(&mut output, &markdown).unwrap();
+            let output_str = std::str::from_utf8(&output).unwrap();
+            assert_eq!(output_str, test.html);
+        });
+    }
+
     #[test]
     // test of standard CommonMark formatting
     fn test_write_html_cmark_basics() {
-        struct TestData<'a> {
-            md: &'a str,
-            html: &'a str,
-        }
         let test_data = vec![
             TestData {
                 // basic text
@@ -313,12 +324,17 @@ mod tests {
                 html: "<p>link: <a href=\"https://example.com/thing\">&quot;thing</a></p>\n",
             },
         ];
-        test_data.iter().for_each(|test| {
-            let markdown: String = test.md.to_string();
-            let mut output = Vec::new();
-            Document::write_html(&mut output, &markdown).unwrap();
-            let output_str = std::str::from_utf8(&output).unwrap();
-            assert_eq!(output_str, test.html);
-        });
+        verify_write_html_with_test_data(test_data);
+    }
+
+    #[test]
+    // test of converting markdwon links to .html
+    fn test_write_html_link_to_markdown() {
+        let test_data = vec![TestData {
+            // .md link conversion to .html
+            md: "link: [thing](https://example.com/thing.md)",
+            html: "<p>link: <a href=\"https://example.com/thing.html\">thing</a></p>\n",
+        }];
+        verify_write_html_with_test_data(test_data);
     }
 }
