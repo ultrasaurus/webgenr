@@ -180,10 +180,13 @@ impl Web<'_> {
                     .strip_prefix(&self.template_dir_path)
                     .expect("strip prefix match");
 
-                let mimetype = rel_path.mimetype();
+                let mimetype = rel_path.mimetype().unwrap_or(mime::TEXT_PLAIN_UTF_8);
                 info!("  rel_path: {}, mimetype: {}", rel_path.display(), mimetype);
-                let result =
-                    epub.add_resource(rel_path, fs::File::open(dir_entry.path())?, mimetype);
+                let result = epub.add_resource(
+                    rel_path,
+                    fs::File::open(dir_entry.path())?,
+                    mimetype.to_string(),
+                );
                 // TODO: figure out why "?" doesn't work at end of statement above
                 if result.is_err() {
                     anyhow::bail!(

@@ -18,3 +18,5 @@ serde = "1.0.136"
 rust-embed = {version = "6.4.2", features = ["include-exclude"]}
 serde_yaml = "0.9.14"
 epub-builder = { git = "https://github.com/ultrasaurus/epub-builder", branch="ultra-main" }
+mime_guess = "2.0.4"
+mime = "0.3.17"

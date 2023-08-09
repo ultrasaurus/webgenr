@@ -1,44 +1,16 @@
-//-- Path utlity functions
-use std::{borrow::Cow, path::Path};
+//-- Path utlity functions -----------------------------------------------
+// extensons to Path struct and related helper functions
 
-// return mimetype given an extension
-pub fn get_mimetype(ext: &str) -> Cow<'static, str> {
-    info!("get_mimetype for: {}", ext);
-    Cow::from(match ext {
-        "mp3" => "audio/mpeg",
-        "mp4" => "video/mp4",
-        "m4a" => "audio/mp4",
-        "wav" => "audio/wav",
-        "ogg" => "audio/ogg",
-        "jpg" => "image/jpeg",
-        "jpeg" => "image/jpeg",
-        "png" => "image/png",
-        "gif" => "image/gif",
-        "svg" => "image/svg+xml",
-        "webp" => "image/webp",
-        "pdf" => "application/pdf",
-        "zip" => "application/zip",
-        "gz" => "application/gzip",
-        "tar" => "application/x-tar",
-        "txt" => "text/plain",
-        "md" => "text/markdown",
-        "html" => "text/html",
-        "css" => "text/css",
-        "js" => "text/javascript",
-        "json" => "application/json",
-        "xml" => "application/xml",
-        "yaml" => "text/yaml",
-        "yml" => "text/yaml",
-        _ => "application/octet-stream",
-    })
-}
+use mime::Mime;
+use std::{borrow::Cow, path::Path};
 
 pub trait PathExt {
     // given a path, ensure that all parent directories of that path exist
     // and create any that don't exist
     fn create_all_parent_dir(&self) -> std::io::Result<()>;
     fn get_ext(&self) -> Option<Cow<'static, str>>;
-    fn mimetype(&self) -> Cow<'static, str>;
+    fn get_ext_str(&self) -> Option<&str>;
+    fn mimetype(&self) -> Option<Mime>;
     fn is_markdown(&self) -> bool;
 }
 
@@ -51,6 +23,13 @@ impl PathExt for Path {
         Ok(())
     }
 
+    fn get_ext_str(&self) -> Option<&str> {
+        if let Some(ext_osstr) = self.extension() {
+            ext_osstr.to_str()
+        } else {
+            None
+        }
+    }
     fn get_ext(&self) -> Option<Cow<'static, str>> {
         if let Some(ext_osstr) = self.extension() {
             Some(Cow::Owned(ext_osstr.to_string_lossy().to_lowercase()))
@@ -58,9 +37,8 @@ impl PathExt for Path {
             None
         }
     }
-    fn mimetype(&self) -> Cow<'static, str> {
-        let ext = self.get_ext().unwrap_or(Cow::Borrowed(""));
-        get_mimetype(&ext)
+    fn mimetype(&self) -> Option<Mime> {
+        mime_guess::from_path(self).first()
     }
     fn is_markdown(&self) -> bool {
         if let Some(ext) = self.extension() {
@@ -88,13 +66,13 @@ mod tests {
         assert_eq!(result, None);
     }
     #[test]
-    fn test_get_mimetype_png() {
-        let result = get_mimetype("png");
-        assert_eq!(result, "image/png".to_string());
+    fn test_imetype_png() {
+        let result = Path::new("foo.png").mimetype();
+        assert_eq!(result, Some(mime::IMAGE_PNG));
     }
     #[test]
     fn test_get_mimetype_empty() {
-        let result = get_mimetype("");
-        assert_eq!(result, "application/octet-stream".to_string());
+        let result = Path::new("foo").mimetype();
+        assert_eq!(result, None);
     }
 }
