@@ -212,7 +212,7 @@ impl Document {
             let next_event = match event {
                 Event::Start(Tag::Link(link_type, url, title)) => {
                     let url_string = url.to_string();
-                    match mime_guess::from_path(&url_string).first() {
+                    match url.mimetype() {
                         None => {
                             // no extension or no matching mime for extension
                             // just return the link unmodified
@@ -229,6 +229,8 @@ impl Document {
                                     Event::Start(Tag::Link(link_type, new_url.into(), title))
                                 }
                                 (mime::AUDIO, _) => {
+                                    info!("mime::AUDIO: {}", mimetype);
+
                                     let link_text = if let Some(next_event) = parser.next() {
                                         if let Event::Text(text) = next_event {
                                             parser.next(); // skip past Event::End
