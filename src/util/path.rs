@@ -38,7 +38,17 @@ impl PathExt for Path {
         }
     }
     fn mimetype(&self) -> Option<Mime> {
-        mime_guess::from_path(self).first()
+        info!("PathExt mimetype {}", self.display());
+        let result = mime_guess::from_path(self).first();
+        if let Some(found) = result {
+            if found.type_() == mime::AUDIO && found.subtype() == "m4a" {
+                Some("audio/mp4".parse::<Mime>().unwrap())
+            } else {
+                Some(found)
+            }
+        } else {
+            None
+        }
     }
     fn is_markdown(&self) -> bool {
         if let Some(ext) = self.extension() {
